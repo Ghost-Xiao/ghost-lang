@@ -8,7 +8,7 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::InputEncoding = $OutputEncoding
 
 # 配置参数
-$Version = "0.0.1<test>"                     # 应用版本
+$Version = "0.1.0"                     # 应用版本
 $OutputDir = "bin"                      # 输出目录
 $MainPackage = "cmd/ghost/main.go"                  # 主程序入口
 
