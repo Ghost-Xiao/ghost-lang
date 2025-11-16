@@ -1,0 +1,79 @@
+# Sample code file
+code.gh
+
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+
+# IDEs
+.vscode/
+.idea/
+.codebuddy/
+
+# Temporary folders
+tmp/
+temp/
+
+# Log files
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Build outputs
+bin/
+dist/
+build/
+
+# Environment files
+.env
+
+# Coverage output
+coverage.txt
+coverage.html
+
+# Benchmark output
+bench.txt
+
+# Code generated files
+*.gen.go
+
+# Editor files
+*.swp
+*.swo
+*~
+
+# macOS
+.AppleDouble
+.LSOverride
+Icon
+
+# Windows
+Desktop.ini
+$RECYCLE.BIN/
+
+# Go specific
+# Keep go.mod and go.sum as they are essential for dependency management
+# go.mod
+# go.sum
