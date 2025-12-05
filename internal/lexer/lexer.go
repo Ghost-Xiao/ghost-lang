@@ -281,22 +281,42 @@ func (l *Lexer) scanIdentifier() string {
 //	解析出的运算符字符串
 func (l *Lexer) scanOperator() string {
 	var op string
+	var lastValidOp string
+
 	for {
+		// 添加当前字符到运算符中
 		op += string(l.CurrPos.Char)
-		l.NextChar()
+
 		// 检查当前运算符是否有效
-		if _, ok := Operators[op]; !ok {
-			op = op[:len(op)-1] // 回退最后一个字符
-			l.Backup()
-			break
+		if _, ok := Operators[op]; ok {
+			// 更新最后一个有效运算符
+			lastValidOp = op
 		}
-		// 如果下一个字符不是运算符，停止扫描
+
+		// 移动到下一个字符
+		l.NextChar()
+
+		// 检查是否还有更多字符可以扫描
 		if !isOperator(l.CurrPos.Char) {
 			break
 		}
 	}
+
+	// 如果找到了有效运算符，回退到正确的位置
+	if lastValidOp != "" {
+		// 计算需要回退的字符数
+		backCount := len(op) - len(lastValidOp)
+		for i := 0; i < backCount; i++ {
+			l.Backup()
+		}
+		// 回退最后一个字符
+		l.Backup()
+		return lastValidOp
+	}
+
+	// 回退并返回单个字符
 	l.Backup()
-	return op
+	return op[:1]
 }
 
 // scanString 扫描字符串字面量

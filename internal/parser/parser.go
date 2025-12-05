@@ -244,6 +244,9 @@ func (p *Parser) parseStatement(posStart *util.Pos) ast.Statement {
 	case lexer.RETURN:
 		// 解析为return语句
 		return p.parseReturnStatement(posStart)
+	case lexer.ELLIPSIS:
+		// 解析为省略语句
+		return p.parseEllipsisStatement(posStart)
 	default:
 		// 解析为表达式语句
 		return p.parseExpressionStatement(posStart)
@@ -325,11 +328,39 @@ func (p *Parser) parseFunctionDeclarationStatement(posStart *util.Pos) *ast.Func
 	}
 	p.Advance()
 	haveDefault := false
+	haveVariadic := false
 	// 解析函数参数
 	for p.CurrToken.Type != lexer.RPAREN {
 		paraPosStart := p.CurrToken.PosStart.Copy()
+
+		// 检查是否为可变参数(...a)
+		isVariadic := false
+		if p.CurrToken.Type == lexer.ELLIPSIS {
+			// 检查可变参数是否已经出现过
+			if haveVariadic {
+				p.Err = &SyntaxError{
+					Message:  "multiple variadic parameters.",
+					PosStart: paraPosStart,
+					PosEnd:   p.CurrToken.PosEnd.Copy(),
+				}
+				return nil
+			}
+			// 检查是否已经有默认参数
+			if haveDefault {
+				p.Err = &SyntaxError{
+					Message:  "default parameter cannot be followed by variadic parameter.",
+					PosStart: paraPosStart,
+					PosEnd:   p.CurrToken.PosEnd.Copy(),
+				}
+				return nil
+			}
+			isVariadic = true
+			haveVariadic = true
+			p.Advance()
+		}
+
 		// 解析参数
-		expr := p.parseIdentifierExpression(paraPosStart)
+		expr := p.parseIdentifierExpression(p.CurrToken.PosStart.Copy())
 		if p.Err != nil {
 			return nil
 		}
@@ -345,6 +376,24 @@ func (p *Parser) parseFunctionDeclarationStatement(posStart *util.Pos) *ast.Func
 		}
 		// 解析默认值
 		if p.NextToken.Type == lexer.EQUAL {
+			// 检查可变参数是否有默认值
+			if isVariadic {
+				p.Err = &SyntaxError{
+					Message:  "variadic parameter cannot have default value.",
+					PosStart: paraPosStart,
+					PosEnd:   p.CurrToken.PosEnd.Copy(),
+				}
+				return nil
+			}
+			// 检查是否已经有可变参数
+			if haveVariadic {
+				p.Err = &SyntaxError{
+					Message:  "variadic parameter cannot be followed by default parameter.",
+					PosStart: paraPosStart,
+					PosEnd:   p.CurrToken.PosEnd.Copy(),
+				}
+				return nil
+			}
 			p.Advance()
 			p.Advance()
 			defaultExpr := p.ParseExpression(LOWEST)
@@ -358,6 +407,7 @@ func (p *Parser) parseFunctionDeclarationStatement(posStart *util.Pos) *ast.Func
 		parameter := &ast.Parameter{
 			Name:         para,
 			DefaultValue: defaultValue,
+			IsVariadic:   isVariadic,
 			PosStart:     paraPosStart,
 			PosEnd:       p.CurrToken.PosEnd.Copy(),
 		}
@@ -365,8 +415,18 @@ func (p *Parser) parseFunctionDeclarationStatement(posStart *util.Pos) *ast.Func
 		if p.Err != nil {
 			return nil
 		}
+
 		// 检查参数后的逗号
 		if p.NextToken.Type != lexer.RPAREN {
+			// 如果已经出现过可变参数，后面不能再有其他参数
+			if haveVariadic {
+				p.Err = &SyntaxError{
+					Message:  "variadic parameter must be the last parameter.",
+					PosStart: p.NextToken.PosStart.Copy(),
+					PosEnd:   p.NextToken.PosEnd.Copy(),
+				}
+				return nil
+			}
 			p.CheckNextAndAdvance(lexer.COMMA)
 			if p.Err != nil {
 				return nil
@@ -375,11 +435,13 @@ func (p *Parser) parseFunctionDeclarationStatement(posStart *util.Pos) *ast.Func
 		p.Advance()
 	}
 	p.Advance()
+
 	// 解析函数体
 	fe.Body = p.parseStatement(p.CurrToken.PosStart.Copy())
 	if p.Err != nil {
 		return nil
 	}
+
 	fe.PosEnd = p.CurrToken.PosEnd.Copy()
 	return fe
 }
@@ -405,6 +467,23 @@ func (p *Parser) parseReturnStatement(posStart *util.Pos) *ast.ReturnStatement {
 	}
 	rs.PosEnd = p.CurrToken.PosEnd.Copy()
 	return rs
+}
+
+// parseEllipsisStatement 解析省略语句
+//
+// 参数:
+//
+//	posStart - 表达式的起始位置
+//
+// 返回值:
+//
+//	省略语句节点
+func (p *Parser) parseEllipsisStatement(posStart *util.Pos) *ast.EllipsisStatement {
+	// 省略语句
+	return &ast.EllipsisStatement{
+		PosStart: posStart,
+		PosEnd:   p.CurrToken.PosEnd.Copy(),
+	}
 }
 
 // parseExpressionStatement 解析表达式语句(由单个表达式组成的语句)

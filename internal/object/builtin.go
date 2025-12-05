@@ -17,6 +17,7 @@ type BuiltinFunction struct {
 	Name         string                                                                           // 函数名
 	Parameter    []string                                                                         // 参数名
 	DefaultValue []Object                                                                         // 默认参数值
+	HaveVariadic bool                                                                             // 是否为可变参数
 	Fn           func(f *frame.Frame, posStart, posEnd *util.Pos, args ...Object) (Object, error) // 函数体
 }
 
@@ -40,6 +41,9 @@ func (bf *BuiltinFunction) String() string {
 	sb.WriteString(bf.Name)
 	sb.WriteString("(")
 	for i, param := range bf.Parameter {
+		if bf.HaveVariadic && i == len(bf.Parameter)-1 {
+			sb.WriteString("...")
+		}
 		sb.WriteString(param)
 		if bf.DefaultValue[i] != nil {
 			sb.WriteString("=")
@@ -537,9 +541,20 @@ var Builtins = map[string]*BuiltinFunction{
 	// print函数
 	"print": {
 		Name:      "print",
-		Parameter: []string{"a"},
+		Parameter: []string{"sep", "a"},
+		DefaultValue: []Object{
+			nil,
+			nil,
+		},
+		HaveVariadic: true,
 		Fn: func(f *frame.Frame, posStart, posEnd *util.Pos, args ...Object) (Object, error) {
-			fmt.Print(args[0].String())
+			sep := args[0]
+			for i, arg := range args[1:] {
+				if i > 0 {
+					fmt.Print(sep.String())
+				}
+				fmt.Print(arg.String())
+			}
 			// 刷新缓冲区
 			_ = os.Stdout.Sync()
 			return &Null{}, nil
@@ -548,9 +563,21 @@ var Builtins = map[string]*BuiltinFunction{
 	// println函数
 	"println": {
 		Name:      "println",
-		Parameter: []string{"a"},
+		Parameter: []string{"sep", "a"},
+		DefaultValue: []Object{
+			nil,
+			nil,
+		},
+		HaveVariadic: true,
 		Fn: func(f *frame.Frame, posStart, posEnd *util.Pos, args ...Object) (Object, error) {
-			fmt.Println(args[0].String())
+			sep := args[0]
+			for i, arg := range args[1:] {
+				if i > 0 {
+					fmt.Print(sep.String())
+				}
+				fmt.Print(arg.String())
+			}
+			fmt.Println()
 			// 刷新缓冲区
 			_ = os.Stdout.Sync()
 			return &Null{}, nil
@@ -560,6 +587,10 @@ var Builtins = map[string]*BuiltinFunction{
 	"len": {
 		Name:      "len",
 		Parameter: []string{"a"},
+		DefaultValue: []Object{
+			nil,
+		},
+		HaveVariadic: false,
 		Fn: func(f *frame.Frame, posStart, posEnd *util.Pos, args ...Object) (Object, error) {
 			a := args[0]
 			switch a := a.(type) {

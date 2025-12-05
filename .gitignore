@@ -25,6 +25,7 @@ go.work
 .vscode/
 .idea/
 .codebuddy/
+.trae/
 
 # Temporary folders
 tmp/

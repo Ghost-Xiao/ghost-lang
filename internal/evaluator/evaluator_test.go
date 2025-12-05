@@ -935,8 +935,9 @@ func TestEvaluator_VisitCallExpression(t *testing.T) {
 								PosStart: util.NewPos(1, 10, 9, "<test>", "func g(a=1) 1;"),
 								PosEnd:   util.NewPos(1, 11, 10, "<test>", "func g(a=1) 1;"),
 							},
-							PosStart: util.NewPos(1, 8, 7, "<test>", "func g(a=1) 1;"),
-							PosEnd:   util.NewPos(1, 11, 10, "<test>", "func g(a=1) 1;"),
+							IsVariadic: false,
+							PosStart:   util.NewPos(1, 8, 7, "<test>", "func g(a=1) 1;"),
+							PosEnd:     util.NewPos(1, 11, 10, "<test>", "func g(a=1) 1;"),
 						},
 					},
 					Body: &ast.ExpressionStatement{
@@ -953,11 +954,46 @@ func TestEvaluator_VisitCallExpression(t *testing.T) {
 				},
 				IsConst: true,
 			},
+			"h": {
+				Name: "h",
+				Value: &object.Function{
+					Name: "h",
+					Parameter: []*ast.Parameter{
+						{
+							Name: &ast.IdentifierExpression{
+								Name:     "a",
+								PosStart: util.NewPos(1, 11, 10, "<test>", "func h(...a) 1;"),
+								PosEnd:   util.NewPos(1, 12, 11, "<test>", "func h(...a) 1;"),
+							},
+							DefaultValue: nil,
+							IsVariadic:   true,
+							PosStart:     util.NewPos(1, 8, 7, "<test>", "func h(...a) 1;"),
+							PosEnd:       util.NewPos(1, 12, 11, "<test>", "func h(...a) 1;"),
+						},
+					},
+					Body: &ast.ExpressionStatement{
+						Expr: &ast.IntExpression{
+							Value:    1,
+							PosStart: util.NewPos(1, 14, 13, "<test>", "func h(...a) 1;"),
+							PosEnd:   util.NewPos(1, 15, 14, "<test>", "func h(...a) 1;"),
+						},
+					},
+					Env: &object.Environment{
+						Store: make(map[string]*object.Symbol),
+						Outer: nil,
+					},
+				},
+				IsConst: true,
+			},
 			"len": {
 				Name: "len",
 				Value: &object.BuiltinFunction{
 					Name:      "len",
 					Parameter: []string{"a"},
+					DefaultValue: []object.Object{
+						nil,
+					},
+					HaveVariadic: false,
 					Fn: func(f *frame.Frame, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 						switch args[0].(type) {
 						case *object.String:
@@ -1001,6 +1037,13 @@ func TestEvaluator_VisitCallExpression(t *testing.T) {
 		{
 			name:  "Call Function with Default Argument",
 			input: `g();`,
+			excepted: &object.Int{
+				Value: 1,
+			},
+		},
+		{
+			name:  "Call Function with Variadic Argument",
+			input: `h(1, 2, 3);`,
 			excepted: &object.Int{
 				Value: 1,
 			},

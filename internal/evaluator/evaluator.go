@@ -76,6 +76,8 @@ func (e *Evaluator) Eval(nodes ast.Node, env *object.Environment) object.Object 
 		return e.evalReturnStatement(n, env)
 	case *ast.ExpressionStatement:
 		return e.evalExpressionStatement(n, env)
+	case *ast.EllipsisStatement:
+		return nil
 	case *ast.PrefixExpression:
 		return e.evalPrefixExpression(n, env)
 	case *ast.InfixExpression:
@@ -1564,6 +1566,15 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 	switch fn := function.(type) {
 	// 函数
 	case *object.Function:
+		// 检查是否有可变参数
+		hasVariadic := false
+		for _, param := range fn.Parameter {
+			if param.IsVariadic {
+				hasVariadic = true
+				break
+			}
+		}
+
 		// 计算默认参数数量
 		defaultLen := 0
 		for _, param := range fn.Parameter {
@@ -1578,42 +1589,72 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 				argLen++
 			}
 		}
-		// 参数数量不匹配
+
+		// 参数数量检查
 		least := len(fn.Parameter) - defaultLen
-		if !(least <= argLen && argLen <= len(fn.Parameter)) {
-			if defaultLen == 0 {
-				e.Err = &ArgumentError{
-					Frame:    e.Frame,
-					Message:  fmt.Sprintf("expected %d parameters, got %d.", len(fn.Parameter), argLen),
-					PosStart: callExpression.PosStart,
-					PosEnd:   callExpression.PosEnd,
-				}
-			} else if least == 1 {
-				e.Err = &ArgumentError{
-					Frame:    e.Frame,
-					Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", len(fn.Parameter), argLen),
-					PosStart: callExpression.PosStart,
-					PosEnd:   callExpression.PosEnd,
-				}
-			} else {
-				e.Err = &ArgumentError{
-					Frame:    e.Frame,
-					Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, len(fn.Parameter), argLen),
-					PosStart: callExpression.PosStart,
-					PosEnd:   callExpression.PosEnd,
-				}
-			}
-			return nil
+		max := len(fn.Parameter)
+
+		// 如果有可变参数，调整参数数量检查逻辑
+		if hasVariadic {
+			// 最小参数数 = 总参数数 - 默认参数数 - 1（减去可变参数）
+			least--
+			// 最大参数数没有限制
+			max = -1
 		}
+
+		// 参数数量不匹配
+		if max == -1 {
+			// 有可变参数，只检查最小参数数
+			if argLen < least {
+				e.Err = &ArgumentError{
+					Frame:    e.Frame,
+					Message:  fmt.Sprintf("expected at least %d parameters, got %d.", least, argLen),
+					PosStart: callExpression.PosStart,
+					PosEnd:   callExpression.PosEnd,
+				}
+				return nil
+			}
+		} else {
+			// 没有可变参数，检查参数数量是否在范围内
+			if !(least <= argLen && argLen <= max) {
+				if defaultLen == 0 {
+					e.Err = &ArgumentError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("expected %d parameters, got %d.", len(fn.Parameter), argLen),
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+				} else if least == 1 {
+					e.Err = &ArgumentError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", len(fn.Parameter), argLen),
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+				} else {
+					e.Err = &ArgumentError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, len(fn.Parameter), argLen),
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+				}
+				return nil
+			}
+		}
+
+		// 计算实际参数值
 		var argument []object.Object
 		for _, arg := range callExpression.Argument {
-			// 如果参数为nil，用默认值填充
 			if arg == nil {
-				defaultValue := e.Eval(fn.Parameter[len(argument)].DefaultValue, env)
-				if e.Err != nil {
-					return nil
+				// 如果参数为nil，用默认值填充
+				if len(argument) < len(fn.Parameter) {
+					defaultValue := e.Eval(fn.Parameter[len(argument)].DefaultValue, env)
+					if e.Err != nil {
+						return nil
+					}
+					argument = append(argument, defaultValue)
 				}
-				argument = append(argument, defaultValue)
 				continue
 			}
 			a := e.Eval(arg, env)
@@ -1622,14 +1663,20 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 			}
 			argument = append(argument, a)
 		}
+
 		// 有默认参数未被赋值时，用默认值填充
 		for i := len(argument); i < len(fn.Parameter); i++ {
+			// 如果是可变参数，跳过默认值填充
+			if fn.Parameter[i].IsVariadic {
+				break
+			}
 			defaultValue := e.Eval(fn.Parameter[i].DefaultValue, env)
 			if e.Err != nil {
 				return nil
 			}
 			argument = append(argument, defaultValue)
 		}
+
 		// 创建函数环境
 		funcEnv := &object.Environment{
 			Store: make(map[string]*object.Symbol),
@@ -1641,14 +1688,45 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 			PosStart: callExpression.PosStart,
 			PosEnd:   callExpression.PosEnd,
 		}
-		// 创建参数
+
+		// 绑定参数到函数环境
 		for i, param := range fn.Parameter {
-			funcEnv.Set(param.Name.Name, &object.Symbol{
-				Name:    param.Name.Name,
-				Value:   argument[i],
-				IsConst: false,
-			})
+			if param.IsVariadic {
+				// 处理可变参数：收集剩余的所有参数到一个列表中
+				variadicArgs := make([]object.Object, 0)
+				for j := i; j < len(argument); j++ {
+					if j != i && argument[j].Type() != variadicArgs[0].Type() {
+						e.Err = &TypeError{
+							Frame:    e.Frame,
+							Message:  "all variadic arguments must be of the same type.",
+							PosStart: callExpression.PosStart,
+							PosEnd:   callExpression.PosEnd,
+						}
+						return nil
+					}
+					variadicArgs = append(variadicArgs, argument[j])
+				}
+				// 创建列表对象
+				listObj := &object.List{
+					Elements: variadicArgs,
+				}
+				// 绑定可变参数
+				funcEnv.Set(param.Name.Name, &object.Symbol{
+					Name:    param.Name.Name,
+					Value:   listObj,
+					IsConst: false,
+				})
+				break
+			} else if i < len(argument) {
+				// 普通参数
+				funcEnv.Set(param.Name.Name, &object.Symbol{
+					Name:    param.Name.Name,
+					Value:   argument[i],
+					IsConst: false,
+				})
+			}
 		}
+
 		// 执行函数体
 		var returnValue = e.evalWithReturnValue(fn.Body, funcEnv)
 		if e.Err != nil {
@@ -1662,6 +1740,9 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 		}
 	// 内置函数
 	case *object.BuiltinFunction:
+		// 检查是否有可变参数
+		hasVariadic := fn.HaveVariadic
+
 		// 计算默认参数数量
 		defaultLen := 0
 		for _, defaultValue := range fn.DefaultValue {
@@ -1676,43 +1757,72 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 				argLen++
 			}
 		}
-		// 参数数量不匹配
+
+		// 参数数量检查
 		least := len(fn.Parameter) - defaultLen
-		if !(least <= argLen && argLen <= len(fn.Parameter)) {
-			if defaultLen == 0 {
-				e.Err = &ArgumentError{
-					Frame:    e.Frame,
-					Message:  fmt.Sprintf("expected %d parameters, got %d.", len(fn.Parameter), argLen),
-					PosStart: callExpression.PosStart,
-					PosEnd:   callExpression.PosEnd,
-				}
-			} else if least == 1 {
-				e.Err = &ArgumentError{
-					Frame:    e.Frame,
-					Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", len(fn.Parameter), argLen),
-					PosStart: callExpression.PosStart,
-					PosEnd:   callExpression.PosEnd,
-				}
-			} else {
-				e.Err = &ArgumentError{
-					Frame:    e.Frame,
-					Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, len(fn.Parameter), argLen),
-					PosStart: callExpression.PosStart,
-					PosEnd:   callExpression.PosEnd,
-				}
-			}
-			return nil
+		max := len(fn.Parameter)
+
+		// 如果有可变参数，调整参数数量检查逻辑
+		if hasVariadic {
+			// 最小参数数 = 总参数数 - 默认参数数 - 1（减去可变参数）
+			least--
+			// 最大参数数没有限制
+			max = -1
 		}
-		// 调用内置函数
+
+		// 参数数量不匹配
+		if max == -1 {
+			// 有可变参数，只检查最小参数数
+			if argLen < least {
+				e.Err = &ArgumentError{
+					Frame:    e.Frame,
+					Message:  fmt.Sprintf("expected at least %d parameters, got %d.", least, argLen),
+					PosStart: callExpression.PosStart,
+					PosEnd:   callExpression.PosEnd,
+				}
+				return nil
+			}
+		} else {
+			// 没有可变参数，检查参数数量是否在范围内
+			if !(least <= argLen && argLen <= max) {
+				if defaultLen == 0 {
+					e.Err = &ArgumentError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("expected %d parameters, got %d.", len(fn.Parameter), argLen),
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+				} else if least == 1 {
+					e.Err = &ArgumentError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", len(fn.Parameter), argLen),
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+				} else {
+					e.Err = &ArgumentError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, len(fn.Parameter), argLen),
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+				}
+				return nil
+			}
+		}
+
+		// 评估参数表达式
 		var argument []object.Object
 		for _, arg := range callExpression.Argument {
 			// 如果参数为nil，用默认值填充
 			if arg == nil {
-				defaultValue := e.Eval(fn.DefaultValue[len(argument)], env)
-				if e.Err != nil {
-					return nil
+				if len(argument) < len(fn.Parameter) {
+					defaultValue := e.Eval(fn.DefaultValue[len(argument)], env)
+					if e.Err != nil {
+						return nil
+					}
+					argument = append(argument, defaultValue)
 				}
-				argument = append(argument, defaultValue)
 				continue
 			}
 			a := e.Eval(arg, env)
@@ -1721,14 +1831,35 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 			}
 			argument = append(argument, a)
 		}
+
 		// 有默认参数未被赋值时，用默认值填充
 		for i := len(argument); i < len(fn.Parameter); i++ {
+			// 如果是可变参数，跳过默认值填充
+			if hasVariadic && i == len(fn.Parameter)-1 {
+				break
+			}
 			defaultValue := e.Eval(fn.DefaultValue[i], env)
 			if e.Err != nil {
 				return nil
 			}
 			argument = append(argument, defaultValue)
 		}
+		// 判断可变参数传入的类型是否相同
+		if hasVariadic {
+			for i := len(fn.Parameter) - 1; i < len(argument); i++ {
+				if i != len(fn.Parameter)-1 && argument[i].Type() != argument[i-1].Type() {
+					e.Err = &TypeError{
+						Frame:    e.Frame,
+						Message:  "all variadic arguments must be of the same type.",
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+					return nil
+				}
+			}
+		}
+
+		// 调用内置函数
 		e.Frame = &frame.Frame{
 			FuncName: fmt.Sprintf("<builtin \"%s\">", fn.Name),
 			Parent:   e.Frame,

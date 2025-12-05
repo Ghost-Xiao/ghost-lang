@@ -199,6 +199,26 @@ func TestLexer_Operators(t *testing.T) {
 				PosEnd:   util.NewPos(1, 2, 1, "<test>", "=>"),
 			},
 		},
+		{
+			name:  "Three-Character Operator - Ellipsis",
+			input: "...",
+			expect: &Token{
+				Type:     ELLIPSIS,
+				Literal:  "...",
+				PosStart: util.NewPos(1, 1, 0, "<test>", "..."),
+				PosEnd:   util.NewPos(1, 4, 3, "<test>", "..."),
+			},
+		},
+		{
+			name:  "Ellipsis Followed By Other Characters",
+			input: "...x",
+			expect: &Token{
+				Type:     ELLIPSIS,
+				Literal:  "...",
+				PosStart: util.NewPos(1, 1, 0, "<test>", "...x"),
+				PosEnd:   util.NewPos(1, 4, 3, "<test>", "...x"),
+			},
+		},
 	}
 
 	for _, tt := range tests {

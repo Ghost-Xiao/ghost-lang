@@ -89,6 +89,7 @@ const (
 	DECREMENT   = "DECREMENT"   // 自减运算符(--)
 	ARROW       = "ARROW"       // 箭头运算符(->)，用于函数返回类型
 	SEMICOLON   = "SEMICOLON"   // 分号(;)
+	ELLIPSIS    = "ELLIPSIS"    // 省略号运算符(...)
 
 	// 复合赋值运算符令牌
 	PLUS_EQUAL        = "PLUS_EQUAL"        // 加法赋值运算符(+=)
@@ -129,6 +130,7 @@ var Operators = map[string]string{
 	">":   GT,                // 大于比较运算符
 	"<":   LT,                // 小于比较运算符
 	".":   DOT,               // 点运算符
+	"...": ELLIPSIS,          // 省略号运算符
 	",":   COMMA,             // 逗号分隔符
 	"=":   EQUAL,             // 赋值运算符
 	"[":   LBRACKET,          // 左中括号

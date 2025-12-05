@@ -250,6 +250,7 @@ func TestParser_ParseFunctionDeclarationStatement(t *testing.T) {
 							PosEnd:   util.NewPos(1, 9, 8, "<test>", "func f(a) 1;"),
 						},
 						DefaultValue: nil,
+						IsVariadic:   false,
 						PosStart:     util.NewPos(1, 8, 7, "<test>", "func f(a) 1;"),
 						PosEnd:       util.NewPos(1, 9, 8, "<test>", "func f(a) 1;"),
 					},
@@ -288,8 +289,9 @@ func TestParser_ParseFunctionDeclarationStatement(t *testing.T) {
 							PosStart: util.NewPos(1, 10, 9, "<test>", "func f(a=1) 1;"),
 							PosEnd:   util.NewPos(1, 11, 10, "<test>", "func f(a=1) 1;"),
 						},
-						PosStart: util.NewPos(1, 8, 7, "<test>", "func f(a=1) 1;"),
-						PosEnd:   util.NewPos(1, 11, 10, "<test>", "func f(a=1) 1;"),
+						IsVariadic: false,
+						PosStart:   util.NewPos(1, 8, 7, "<test>", "func f(a=1) 1;"),
+						PosEnd:     util.NewPos(1, 11, 10, "<test>", "func f(a=1) 1;"),
 					},
 				},
 				Body: &ast.ExpressionStatement{
@@ -305,6 +307,36 @@ func TestParser_ParseFunctionDeclarationStatement(t *testing.T) {
 				PosEnd:   util.NewPos(1, 14, 13, "<test>", "func f(a=1) 1;"),
 			},
 		},
+		{
+			name:  "Function with Variadic Parameter",
+			input: "func f(...a) ...;",
+			expected: &ast.FunctionDeclarationStatement{
+				Name: &ast.IdentifierExpression{
+					Name:     "f",
+					PosStart: util.NewPos(1, 6, 5, "<test>", "func f(...a) ...;"),
+					PosEnd:   util.NewPos(1, 7, 6, "<test>", "func f(...a) ...;"),
+				},
+				Parameter: []*ast.Parameter{
+					{
+						Name: &ast.IdentifierExpression{
+							Name:     "a",
+							PosStart: util.NewPos(1, 11, 10, "<test>", "func f(...a) ...;"),
+							PosEnd:   util.NewPos(1, 12, 11, "<test>", "func f(...a) ...;"),
+						},
+						DefaultValue: nil,
+						IsVariadic:   true,
+						PosStart:     util.NewPos(1, 8, 7, "<test>", "func f(...a) ...;"),
+						PosEnd:       util.NewPos(1, 12, 11, "<test>", "func f(...a) ...;"),
+					},
+				},
+				Body: &ast.EllipsisStatement{
+					PosStart: util.NewPos(1, 14, 13, "<test>", "func f(...a) ...;"),
+					PosEnd:   util.NewPos(1, 17, 16, "<test>", "func f(...a) ...;"),
+				},
+				PosStart: util.NewPos(1, 1, 0, "<test>", "func f(...a) ...;"),
+				PosEnd:   util.NewPos(1, 17, 16, "<test>", "func f(...a) ...;"),
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -316,8 +348,8 @@ func TestParser_ParseFunctionDeclarationStatement(t *testing.T) {
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
 			if !reflect.DeepEqual(expr, tt.expected) {
+				println(expr.Parameter[0].Name.PosStart.String(), tt.expected.Parameter[0].Name.PosStart.String())
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
 		})
@@ -351,6 +383,40 @@ func TestParser_ParseReturnStatement(t *testing.T) {
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
 			expr := program.Statements[0].(*ast.ReturnStatement)
+
+			if p.Err != nil {
+				t.Errorf("err = %+v, expected nil", p.Err)
+			}
+
+			if !reflect.DeepEqual(expr, tt.expected) {
+				t.Errorf("expected %+v, got %+v", tt.expected, expr)
+			}
+		})
+	}
+}
+
+func TestParser_ParseEllipsisStatement(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected *ast.EllipsisStatement
+	}{
+		{
+			name:  "Ellipsis Statement",
+			input: "...;",
+			expected: &ast.EllipsisStatement{
+				PosStart: util.NewPos(1, 1, 0, "<test>", "...;"),
+				PosEnd:   util.NewPos(1, 4, 3, "<test>", "...;"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.NewLexer("<test>", tt.input)
+			p, _ := NewParser(l)
+			program := p.ParseProgram()
+			expr := program.Statements[0].(*ast.EllipsisStatement)
 
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)

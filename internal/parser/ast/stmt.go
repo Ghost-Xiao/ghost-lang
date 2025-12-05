@@ -69,18 +69,22 @@ func (es *ExpressionStatement) Statement() {}
 type Parameter struct {
 	Name         *IdentifierExpression // 参数名
 	DefaultValue Expression            // 默认值
+	IsVariadic   bool                  // 是否为可变参数
 	PosStart     *util.Pos             // 参数名的起始位置
 	PosEnd       *util.Pos             // 参数名的结束位置
 }
 
 // String 返回参数的字符串表示
-// 格式为：a或a=<default-value>
+// 格式为：a或a=<default-value>或...a
 //
 // 返回值:
 //
 //	参数表达式的字符串表示
 func (p *Parameter) String() string {
 	var sb strings.Builder
+	if p.IsVariadic {
+		sb.WriteString("...")
+	}
 	sb.WriteString(p.Name.String())
 	if p.DefaultValue != nil {
 		sb.WriteString("=")
@@ -152,3 +156,20 @@ func (rs *ReturnStatement) String() string {
 // Statement 是标记方法，用于类型判断
 // 实现Statement接口
 func (rs *ReturnStatement) Statement() {}
+
+// EllipsisStatement 是省略语句节点
+// 用于表示省略语句(...;)
+
+type EllipsisStatement struct {
+	PosStart *util.Pos // 语句的起始位置
+	PosEnd   *util.Pos // 语句的结束位置
+}
+
+// String 返回省略语句的字符串表示
+func (es *EllipsisStatement) String() string {
+	return "..."
+}
+
+// Statement 是标记方法，用于类型判断
+// 实现Statement接口
+func (es *EllipsisStatement) Statement() {}
