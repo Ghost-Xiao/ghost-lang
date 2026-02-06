@@ -129,11 +129,6 @@ func (fs *FunctionDeclarationStatement) String() string {
 // 实现Statement接口
 func (fs *FunctionDeclarationStatement) Statement() {}
 
-// IsLvalue 方法，返回是否为左值
-func (fs *FunctionDeclarationStatement) IsLvalue() bool {
-	return false
-}
-
 // ReturnStatement 是返回语句节点
 // 用于返回值
 
@@ -166,6 +161,12 @@ type EllipsisStatement struct {
 }
 
 // String 返回省略语句的字符串表示
+// 格式为：...
+//
+// 返回值:
+//
+//	省略号语句的字符串表示
+
 func (es *EllipsisStatement) String() string {
 	return "..."
 }
@@ -173,3 +174,47 @@ func (es *EllipsisStatement) String() string {
 // Statement 是标记方法，用于类型判断
 // 实现Statement接口
 func (es *EllipsisStatement) Statement() {}
+
+// BreakStatement 是break语句节点
+// 用于跳出循环
+
+type BreakStatement struct {
+	PosStart *util.Pos // 语句的起始位置
+	PosEnd   *util.Pos // 语句的结束位置
+}
+
+// String 返回break语句的字符串表示
+// 格式为：break
+//
+// 返回值:
+//
+//	break语句的字符串表示
+func (bs *BreakStatement) String() string {
+	return "break"
+}
+
+// Statement 是标记方法，用于类型判断
+// 实现Statement接口
+func (bs *BreakStatement) Statement() {}
+
+// ContinueStatement 是continue语句节点
+// 用于继续循环
+
+type ContinueStatement struct {
+	PosStart *util.Pos // 语句的起始位置
+	PosEnd   *util.Pos // 语句的结束位置
+}
+
+// String 返回continue语句的字符串表示
+// 格式为：continue
+//
+// 返回值:
+//
+//	continue语句的字符串表示
+func (cs *ContinueStatement) String() string {
+	return "continue"
+}
+
+// Statement 是标记方法，用于类型判断
+// 实现Statement接口
+func (cs *ContinueStatement) Statement() {}

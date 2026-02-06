@@ -39,6 +39,7 @@ func StartREPL() {
 	printInfo("Press Ctrl+C to exit.")
 	// 创建解释器环境
 	env := &object.Environment{
+		Name:  "repl",
 		Store: make(map[string]*object.Symbol),
 		Outer: nil,
 	}

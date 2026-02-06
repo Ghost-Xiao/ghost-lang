@@ -2,11 +2,19 @@
 
 一个用 Go 编写的简洁、易学的解释型编程语言实现，专注于教学和学习编程语言设计。
 
+## 项目图标
+
+从 ghost v0.2.0 开始，Ghost Language 拥有了自己的图标：
+
+![Ghost Language Icon](assets/image.png)
+
+此图标位于 `assets/image.png`，setup 脚本会使用此图标为应用程序创建桌面快捷方式和文件关联。
+
 ## 快速开始
 
 ### 安装
 
-有两种方式可以使用 Ghost：
+有三种方式可以使用 Ghost：
 
 1. 使用 PowerShell 脚本构建（推荐）：
 ```bash
@@ -15,7 +23,7 @@ git clone https://github.com/Ghost-Xiao/ghost-lang.git
 cd ghost-lang
 
 # 使用 PowerShell 脚本构建（Windows）
-.\build.ps1
+./build.ps1
 
 # 构建后的可执行文件位于 bin/ 目录下
 ```
@@ -23,6 +31,14 @@ cd ghost-lang
 2. 使用 Go 工具直接构建：
 ```bash
 go build -o ghost cmd/ghost/main.go
+```
+
+3. 从 Release 界面下载压缩包：
+```bash
+# 1. 访问项目的 GitHub Release 页面
+# 2. 下载对应操作系统的压缩包
+# 3. 解压压缩包
+# 4. 运行解压目录中的 setup 脚本进行安装
 ```
 
 ### 运行 REPL
@@ -39,417 +55,75 @@ go build -o ghost cmd/ghost/main.go
 ./ghost run script.gh
 ```
 
-## 语言语法说明
-
-Ghost Lang 支持多种语法结构，包括表达式、语句和控制结构。以下是基于 AST 节点的详细语法说明。
-
-### 程序(Program)
-
-程序是 AST 的根节点，表示整个源代码文件，由一系列按顺序执行的语句组成。
-
-**语法定义：**
-```
-Program ::= Statement*
-```
-
-**示例：**
-```ghost
-var x = 10;
-println(x);
-```
-
-### 表达式(Expression)
-
-#### 整数字面量(IntegerLiteral)
-表示整数值的表达式节点。
-
-**语法定义：**
-```
-IntegerLiteral ::= [0-9]+
-```
-
-**示例：**
-```ghost
-42;
--10;
-```
-
-#### 浮点数字面量(FloatLiteral)
-表示浮点数值的表达式节点。
-
-**语法定义：**
-```
-FloatLiteral ::= [0-9]+ "." [0-9]+
-```
-
-**示例：**
-```ghost
-3.14;
--2.718;
-```
-
-#### 布尔字面量(BooleanLiteral)
-表示布尔值(true/false)的表达式节点。
-
-**语法定义：**
-```
-BooleanLiteral ::= "true" | "false"
-```
-
-**示例：**
-```ghost
-true;
-false;
-```
-
-#### 空字面量(NullLiteral)
-表示空值的表达式节点。
-
-**语法定义：**
-```
-NullLiteral ::= "null"
-```
-
-**示例：**
-```ghost
-null;
-```
-
-#### 字符串字面量(StringLiteral)
-表示字符串值的表达式节点。
-
-**语法定义：**
-```
-StringLiteral ::= (""" .*? """) | ("'" .*? "'") | ("`" .*? "`")
-```
-
-**示例：**
-```ghost
-"Hello, Ghost!";
-'Hello, Ghost!';
-`Hello, Ghost!`;
-```
-
-**注意事项：**
-- 字符串字面量支持使用双引号、单引号和反引号。
-- 反引号内的转义字符不会被解析，直接输出。
-
-#### 列表字面量(ListLiteral)
-表示列表值的表达式节点。
-
-**语法定义：**
-```
-ListLiteral ::= "[" Expression ("," Expression)* "]"
-```
-
-**示例：**
-```ghost
-[1, 2, 3, 4, 5];
-["apple", "banana", "orange"];
-```
-
-**注意事项：**
-- 列表字面量的每个元素的类型必须相同。
-
-#### 标识符(Identifier)
-表示变量名或函数名的表达式节点。
-
-**语法定义：**
-```
-Identifier ::= [a-zA-Z_][a-zA-Z0-9_]*
-```
-
-**示例：**
-```ghost
-x;
-myVariable;
-add;
-```
-
-#### 前缀表达式(PrefixExpression)
-表示一元操作符表达式，如负号、逻辑非、按位取反等。
-
-**语法定义：**
-```
-PrefixExpression ::= ("-" | "!" | "~") Expression
-```
-
-**示例：**
-```ghost
--x;
-!true;
-~i;
-```
-
-#### 中缀表达式(InfixExpression)
-表示二元操作符表达式，如加法、减法、比较、位运算等。
-
-**语法定义：**
-```
-InfixExpression ::= (Expression Operator Expression) | (Expression "[" Expression "]")
-Operator ::= "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&&" | "||" | "&" | "|" | "^" | "<<" | ">>"
-```
-
-**示例：**
-```ghost
-x + 10;
-y * 2;
-a > b;
-x == 10;
-```
-
-#### 分组表达式(GroupExpression)
-用于改变运算优先级的括号表达式。
-
-**语法定义：**
-```
-GroupExpression ::= "(" Expression ")"
-```
-
-**示例：**
-```ghost
-(5 + 3) * 2;
-```
-
-#### 变量初始化表达式(VarInitializationExpression)
-用于变量初始化的表达式。
-
-**语法定义：**
-```
-VarInitializationExpression ::= ("var" | "const") Identifier "=" Expression
-```
-
-**示例：**
-```ghost
-var x = 20;
-const PI = 3.14159;
-```
-
-#### 变量赋值表达式(VarAssignmentExpression)
-用于给已声明的变量重新赋值的表达式。
-
-**语法定义：**
-```
-VarAssignmentExpression ::= Lvalue "=" Expression
-Lvalue ::= Identifier | IndexExpression
-```
-
-**示例：**
-```ghost
-x = 30;
-a[0] = 40;
-```
-
-#### 复合赋值表达式(CompoundAssignmentExpression)
-用于复合赋值操作的表达式。
-
-**语法定义：**
-```
-CompoundAssignmentExpression ::= Identifier CompoundOperator Expression
-CompoundOperator ::= "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>="
-```
-
-**示例：**
-```ghost
-a += 3;
-b -= 2;
-c *= 4;
-d /= 2;
-```
-
-#### 前缀自增 / 自减表达式(PrefixUnaryIncDecExpression)
-用于前缀自增 / 自减表达式
-
-**语法定义：**
-```
-PrefixUnaryIncDecExpression ::= ("++" | "--") Lvalue
-```
-
-**示例：**
-```ghost
-++x;
---y;
-```
-
-#### 后缀自增 / 自减表达式(PostfixUnaryIncDecExpression)
-用于后缀自增 / 自减表达式
-
-**语法定义：**
-```
-PostfixUnaryIncDecExpression ::= Lvalue ("++" | "--")
-```
-
-**示例：**
-```ghost
-x++;
-y--;
-```
-
-#### 块表达式(BlockExpression)
-用于包含多个表达式的代码块。
-
-**语法定义：**
-```
-BlockExpression ::= "{" Statement* "}"
-```
-
-**示例：**
-```ghost
-{
-  var c = 10;
-  c + 5;
-};
-```
-
-**注意事项：**
-- 块表达式有自己的作用域，其中声明的变量在块表达式结束后会被销毁。
-- 块表达式的返回值是最后一个语句的返回值。
-
-#### 条件表达式(IfExpression)
-用于条件分支的表达式。
-
-**语法定义：**
-```
-IfExpression ::= "if" Expression Statement ("else" Statement)?
-```
-
-**示例：**
-```ghost
-if x > 5 {
-  x * 2;
-} else {
-  x / 2;
-};
-```
-
-**注意事项：**
-- 条件表达式的返回值是条件分支中最后一个语句的返回值。
-- 如果没有 else 分支且条件表达式的条件为 false，条件表达式的返回值是 null。
-
-#### 函数调用表达式(CallExpression)
-表示函数调用的表达式节点。
-
-**语法定义：**
-```
-CallExpression ::= Expression "(" (ArgumentList)? ")"
-ArgumentList ::= Argument ("," Argument)*
-Argument ::= Expression | ""
-```
-
-**示例：**
-```ghost
-println("hello");
-add(1, , 2);
-len([1, 2, 3]);
-```
-
-**注意事项：**
-- 调用函数时，参数列表中的空参数（逗号分隔，空参数代表使用默认值）会被忽略。
-- 调用函数时，如果参数数量少于函数定义的参数数量，未被赋值的参数会使用默认值。
-
-#### 索引表达式(IndexExpression)
-表示列表索引访问的表达式节点。
-
-**语法定义：**
-```
-IndexExpression ::= Expression "[" Expression "]"
-```
-
-**示例：**
-```ghost
-list[0];
-matrix[1][2];
-```
-
-### 语句(Statement)
-
-#### 表达式语句(ExpressionStatement)
-将表达式作为语句执行。
-
-**语法定义：**
-```
-ExpressionStatement ::= Expression
-```
-
-**示例：**
-```ghost
-x = 10;
-println("Hello");
-```
-
-#### For 循环语句(ForStatement)
-用于循环执行代码块的语句。
-
-**语法定义：**
-```
-ForStatement ::= "for" Statement ";" Expression ";" Statement Statement
-```
-
-**示例：**
-```ghost
-for var i = 0; i < 10; i = i + 1 {
-  println(i);
-};
-```
-
-#### 函数声明语句(FunctionDeclarationStatement)
-用于声明函数的语句。
-
-**语法定义：**
-```
-FunctionDeclarationStatement ::= "func" Identifier "(" (ParameterList)? ")" Statement
-ParameterList ::= NonDefaultParameter ("," NonDefaultParameter)* ("," DefaultParameter ("," DefaultParameter)*)?
-NonDefaultParameter ::= Identifier
-DefaultParameter ::= Identifier "=" Expression
-```
-
-**示例：**
-```ghost
-func add(x, y=0) {
-  return x + y;
-};
-```
-
-**注意事项：**
-- 函数参数可以是非默认参数或默认参数。
-- 默认参数必须在参数列表的末尾。
-
-#### 返回语句(ReturnStatement)
-用于从函数中返回值的语句。
-
-**语法定义：**
-```
-ReturnStatement ::= "return" Expression
-```
-
-**示例：**
-```ghost
-return 42;
-return x + y;
-```
-
-## 代码示例
-
-```ghost
-func fib(n) {
-    if n <= 1 {
-        return n;
-    };
-    return fib(n - 1) + fib(n - 2);
-};
-
-println(fib(10)); // print 55
-```
-
-## 项目架构
-
-```
-main.go → cli包 → 词法分析器(lexer)
-               → 语法分析器(parser) → AST抽象语法树
-               → 解释执行器(evaluator) → 运行时对象(object)
-                                    → 执行环境(frame)
-               → REPL交互模块
-```
+### setup 脚本使用指南
+
+#### Windows 平台
+
+**权限配置**
+- 以管理员身份运行：所有脚本需要以管理员身份运行，否则可能会遇到权限不足的问题
+- PowerShell 执行策略：确保 PowerShell 执行策略允许运行脚本
+  - 可以通过以下命令查看当前执行策略：`Get-ExecutionPolicy`
+  - 如果执行策略为 `Restricted`，可以临时设置为 `RemoteSigned`：`Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process`
+
+**执行步骤**
+1. 构建项目：运行 `./build.ps1` 构建项目
+2. 安装设置：运行 `./setup.ps1` 进行安装
+3. 脚本会自动处理图标安装和环境变量配置
+
+**验证安装成功的方法**
+- 在命令行中运行 `ghost -r` 启动 REPL（交互式解释器）
+- 如果 REPL 成功启动并显示提示符，则表示安装成功
+
+#### macOS 平台
+
+**权限配置**
+- 添加执行权限：需要给 `setup.command` 脚本添加执行权限
+  - 运行 `chmod +x setup.command` 来添加执行权限
+
+**执行步骤**
+1. 构建项目：运行 `go build -o ghost cmd/ghost/main.go` 构建项目
+2. 安装设置：双击 `setup.command` 文件或在终端中运行 `./setup.command`
+3. 脚本会创建一个带图标的 `ghost.app` 并放入应用程序文件夹
+
+**验证安装成功的方法**
+- 在应用程序文件夹中找到 `ghost.app` 并双击启动
+- 或在终端中运行 `ghost -r` 启动 REPL
+- 如果 REPL 成功启动并显示提示符，则表示安装成功
+
+#### Linux 平台
+
+**权限配置**
+- 添加执行权限：需要给 `setup.sh` 脚本添加执行权限
+  - 运行 `chmod +x setup.sh` 来添加执行权限
+- 管理员权限：某些操作（如安装图标到系统目录）可能需要 `sudo` 权限
+
+**执行步骤**
+1. 构建项目：运行 `go build -o ghost cmd/ghost/main.go` 构建项目
+2. 安装设置：运行 `./setup.sh`（可能需要 `sudo ./setup.sh`）
+3. 脚本会安装图标、创建 `.desktop` 文件并配置文件关联
+4. 脚本会询问是否将 `ghost` 添加到环境变量中
+
+**验证安装成功的方法**
+- 在应用菜单中搜索 "Ghost" 并启动
+- 或在终端中运行 `ghost -r` 启动 REPL
+- 如果 REPL 成功启动并显示提示符，则表示安装成功
+
+## 文档导航
+
+为了提供更清晰、更详细的文档，我们将语法说明和示例移至 `docs/` 目录：
+
+### 语法文档
+- [表达式语法](docs/syntax/expressions.md) - 详细的表达式语法定义和示例
+- [语句语法](docs/syntax/statements.md) - 详细的语句语法定义和示例
+- [函数语法](docs/syntax/functions.md) - 详细的函数语法定义和示例
+- [控制流语法](docs/syntax/control-flow.md) - 详细的控制流语法定义和示例
+
+### 示例和架构
+- [代码示例](docs/examples/fibonacci.md) - 斐波那契数列等示例代码
+- [项目架构](docs/architecture.md) - 项目的整体架构和模块说明
+
+### 其他文档
+- [内置函数说明](docs/builtins.md) - 详细的内置函数文档
 
 ## 如何贡献
 

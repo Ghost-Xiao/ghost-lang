@@ -80,6 +80,7 @@ func RunFile(fileName string) {
 	}
 	// 创建解释器环境
 	env := &object.Environment{
+		Name:  baseName,
 		Store: make(map[string]*object.Symbol),
 		Outer: nil,
 	}

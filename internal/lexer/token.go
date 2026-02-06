@@ -44,16 +44,18 @@ const (
 	IDENT   = "IDENT"   // 标识符令牌，如变量名、函数名
 
 	// 关键字令牌
-	VAR    = "VAR"    // var关键字，用于变量声明
-	CONST  = "CONST"  // const关键字，用于常量声明
-	FUNC   = "FUNC"   // func关键字，用于函数定义
-	IF     = "IF"     // if关键字，条件语句
-	ELSE   = "ELSE"   // else关键字，条件语句的分支
-	FOR    = "FOR"    // for关键字，循环语句
-	RETURN = "RETURN" // return关键字，函数返回
-	TRUE   = "TRUE"   // true关键字，布尔值
-	FALSE  = "FALSE"  // false关键字，布尔值
-	NULL   = "NULL"   // null关键字，表示空值
+	VAR      = "VAR"      // var关键字，用于变量声明
+	CONST    = "CONST"    // const关键字，用于常量声明
+	FUNC     = "FUNC"     // func关键字，用于函数定义
+	IF       = "IF"       // if关键字，条件语句
+	ELSE     = "ELSE"     // else关键字，条件语句的分支
+	FOR      = "FOR"      // for关键字，循环语句
+	RETURN   = "RETURN"   // return关键字，函数返回
+	TRUE     = "TRUE"     // true关键字，布尔值
+	FALSE    = "FALSE"    // false关键字，布尔值
+	NULL     = "NULL"     // null关键字，表示空值
+	BREAK    = "BREAK"    // break关键字，跳出循环
+	CONTINUE = "CONTINUE" // continue关键字，继续循环
 
 	// 运算符令牌
 	PLUS        = "PLUS"        // 加号运算符(+)
@@ -107,16 +109,18 @@ const (
 // Keywords 关键字映射表，将字符串标识符映射到对应的令牌类型
 // 用于词法分析时识别保留关键字
 var Keywords = map[string]string{
-	"var":    VAR,    // 变量声明关键字
-	"const":  CONST,  // 常量声明关键字
-	"func":   FUNC,   // 函数定义关键字
-	"if":     IF,     // 条件语句关键字
-	"else":   ELSE,   // 条件语句分支关键字
-	"for":    FOR,    // 循环语句关键字
-	"return": RETURN, // 函数返回关键字
-	"true":   TRUE,   // 布尔值true
-	"false":  FALSE,  // 布尔值false
-	"null":   NULL,   // 空值关键字
+	"var":      VAR,      // 变量声明关键字
+	"const":    CONST,    // 常量声明关键字
+	"func":     FUNC,     // 函数定义关键字
+	"if":       IF,       // 条件语句关键字
+	"else":     ELSE,     // 条件语句分支关键字
+	"for":      FOR,      // 循环语句关键字
+	"return":   RETURN,   // 函数返回关键字
+	"true":     TRUE,     // 布尔值true
+	"false":    FALSE,    // 布尔值false
+	"null":     NULL,     // 空值关键字
+	"break":    BREAK,    // 跳出循环关键字
+	"continue": CONTINUE, // 继续循环关键字
 }
 
 // Operators 操作符映射表，将字符串操作符映射到对应的令牌类型

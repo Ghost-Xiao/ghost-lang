@@ -247,6 +247,12 @@ func (p *Parser) parseStatement(posStart *util.Pos) ast.Statement {
 	case lexer.ELLIPSIS:
 		// 解析为省略语句
 		return p.parseEllipsisStatement(posStart)
+	case lexer.BREAK:
+		// 解析为break语句
+		return p.parseBreakStatement(posStart)
+	case lexer.CONTINUE:
+		// 解析为continue语句
+		return p.parseContinueStatement(posStart)
 	default:
 		// 解析为表达式语句
 		return p.parseExpressionStatement(posStart)
@@ -481,6 +487,40 @@ func (p *Parser) parseReturnStatement(posStart *util.Pos) *ast.ReturnStatement {
 func (p *Parser) parseEllipsisStatement(posStart *util.Pos) *ast.EllipsisStatement {
 	// 省略语句
 	return &ast.EllipsisStatement{
+		PosStart: posStart,
+		PosEnd:   p.CurrToken.PosEnd.Copy(),
+	}
+}
+
+// parseBreakStatement 解析break语句
+//
+// 参数:
+//
+//	posStart - 表达式的起始位置
+//
+// 返回值:
+//
+//	break语句节点BreakStatement
+func (p *Parser) parseBreakStatement(posStart *util.Pos) *ast.BreakStatement {
+	// 跳出循环语句
+	return &ast.BreakStatement{
+		PosStart: posStart,
+		PosEnd:   p.CurrToken.PosEnd.Copy(),
+	}
+}
+
+// parseContinueStatement 解析continue语句
+//
+// 参数:
+//
+//	posStart - 表达式的起始位置
+//
+// 返回值:
+//
+//	continue语句节点ContinueStatement
+func (p *Parser) parseContinueStatement(posStart *util.Pos) *ast.ContinueStatement {
+	// 跳过继续语句
+	return &ast.ContinueStatement{
 		PosStart: posStart,
 		PosEnd:   p.CurrToken.PosEnd.Copy(),
 	}

@@ -74,6 +74,10 @@ func (e *Evaluator) Eval(nodes ast.Node, env *object.Environment) object.Object 
 		return e.evalFunctionDeclarationStatement(n, env)
 	case *ast.ReturnStatement:
 		return e.evalReturnStatement(n, env)
+	case *ast.BreakStatement:
+		return e.evalBreakStatement(n, env)
+	case *ast.ContinueStatement:
+		return e.evalContinueStatement(n, env)
 	case *ast.ExpressionStatement:
 		return e.evalExpressionStatement(n, env)
 	case *ast.EllipsisStatement:
@@ -159,6 +163,7 @@ func (e *Evaluator) evalProgram(program *ast.Program, env *object.Environment) o
 func (e *Evaluator) evalForStatement(forStatement *ast.ForStatement, env *object.Environment) object.Object {
 	// 创建新环境
 	forEnv := &object.Environment{
+		Name:  "for",
 		Store: make(map[string]*object.Symbol),
 		Outer: env,
 	}
@@ -185,12 +190,15 @@ func (e *Evaluator) evalForStatement(forStatement *ast.ForStatement, env *object
 	// 执行循环体
 	for condition.(*object.Bool).Value {
 		// 执行循环体
-		ret := e.Eval(forStatement.Body, forEnv)
+		ret := e.evalWithSpecialValue(forStatement.Body, forEnv)
 		if e.Err != nil {
 			return nil
 		}
 		if returnValue, ok := ret.(*object.ReturnValue); ok {
 			return returnValue
+		}
+		if _, ok := ret.(*object.BreakValue); ok {
+			break
 		}
 		// 执行更新语句
 		e.Eval(forStatement.Update, forEnv)
@@ -285,6 +293,74 @@ func (e *Evaluator) evalReturnStatement(returnStatement *ast.ReturnStatement, en
 	return &object.ReturnValue{
 		Value: returnValue,
 	}
+}
+
+// evalBreakStatement 处理break语句节点
+// 执行break语句，跳出当前循环
+//
+// 参数:
+//
+//	breakStatement - break语句节点
+//	env - 执行环境
+//
+// 返回值:
+//
+//	object.Object - BreakValue实例
+func (e *Evaluator) evalBreakStatement(breakStatement *ast.BreakStatement, env *object.Environment) object.Object {
+	inLoop := false
+	for e := env.Outer; e != nil; e = e.Outer {
+		if e.Name == "for" {
+			inLoop = true
+			break
+		}
+		if e.Name == "function" {
+			break
+		}
+	}
+	if !inLoop {
+		e.Err = &SyntaxError{
+			Frame:    e.Frame,
+			Message:  "break statement is only allowed inside for loops.",
+			PosStart: breakStatement.PosStart,
+			PosEnd:   breakStatement.PosEnd,
+		}
+		return nil
+	}
+	return &object.BreakValue{}
+}
+
+// evalContinueStatement 处理continue语句节点
+// 执行continue语句，跳出当前循环
+//
+// 参数:
+//
+//	continueStatement - continue语句节点
+//	env - 执行环境
+//
+// 返回值:
+//
+//	object.Object - ContinueValue实例
+func (e *Evaluator) evalContinueStatement(continueStatement *ast.ContinueStatement, env *object.Environment) object.Object {
+	inLoop := false
+	for e := env.Outer; e != nil; e = e.Outer {
+		if e.Name == "for" {
+			inLoop = true
+			break
+		}
+		if e.Name == "function" {
+			break
+		}
+	}
+	if !inLoop {
+		e.Err = &SyntaxError{
+			Frame:    e.Frame,
+			Message:  "continue statement is only allowed inside for loops.",
+			PosStart: continueStatement.PosStart,
+			PosEnd:   continueStatement.PosEnd,
+		}
+		return nil
+	}
+	return &object.ContinueValue{}
 }
 
 // evalIndexExpression 处理索引表达式节点
@@ -1444,7 +1520,7 @@ func (e *Evaluator) evalInfixOperator(infixExpression *ast.InfixExpression, left
 	}
 }
 
-func (e *Evaluator) evalWithReturnValue(node ast.Node, env *object.Environment) object.Object {
+func (e *Evaluator) evalWithSpecialValue(node ast.Node, env *object.Environment) object.Object {
 	var ret object.Object
 	switch n := node.(type) {
 	case *ast.ExpressionStatement:
@@ -1453,11 +1529,23 @@ func (e *Evaluator) evalWithReturnValue(node ast.Node, env *object.Environment) 
 			return nil
 		}
 	case *ast.ReturnStatement:
-		ret = e.Eval(n.ReturnValue, env)
+		ret = e.evalReturnStatement(n, env)
 		if e.Err != nil {
 			return nil
 		}
-		return &object.ReturnValue{Value: ret}
+		return ret
+	case *ast.BreakStatement:
+		ret = e.evalBreakStatement(n, env)
+		if e.Err != nil {
+			return nil
+		}
+		return ret
+	case *ast.ContinueStatement:
+		ret = e.evalContinueStatement(n, env)
+		if e.Err != nil {
+			return nil
+		}
+		return ret
 	case ast.Statement:
 		ret = e.Eval(n, env)
 		if e.Err != nil {
@@ -1491,14 +1579,21 @@ func (e *Evaluator) evalBlockExpression(blockExpression *ast.BlockExpression, en
 	var ret object.Object
 	// 创建新环境
 	blockEnv := &object.Environment{
+		Name:  "block",
 		Store: make(map[string]*object.Symbol),
 		Outer: env,
 	}
 	for _, statement := range blockExpression.Statements {
 		// 获取返回值
-		ret = e.evalWithReturnValue(statement, blockEnv)
+		ret = e.evalWithSpecialValue(statement, blockEnv)
 		if returnValue, ok := ret.(*object.ReturnValue); ok {
 			return returnValue
+		}
+		if breakValue, ok := ret.(*object.BreakValue); ok {
+			return breakValue
+		}
+		if continueValue, ok := ret.(*object.ContinueValue); ok {
+			return continueValue
 		}
 	}
 	return ret
@@ -1535,13 +1630,14 @@ func (e *Evaluator) evalIfExpression(ifExpression *ast.IfExpression, env *object
 	}
 	// 创建新环境
 	ifEnv := &object.Environment{
+		Name:  "if",
 		Store: make(map[string]*object.Symbol),
 		Outer: env,
 	}
 	if condition.(*object.Bool).Value {
-		return e.evalWithReturnValue(ifExpression.Consequence, ifEnv)
+		return e.evalWithSpecialValue(ifExpression.Consequence, ifEnv)
 	} else if ifExpression.Alternative != nil {
-		return e.evalWithReturnValue(ifExpression.Alternative, ifEnv)
+		return e.evalWithSpecialValue(ifExpression.Alternative, ifEnv)
 	} else {
 		return &object.Null{}
 	}
@@ -1679,6 +1775,7 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 
 		// 创建函数环境
 		funcEnv := &object.Environment{
+			Name:  "function",
 			Store: make(map[string]*object.Symbol),
 			Outer: fn.Env,
 		}
@@ -1728,7 +1825,7 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 		}
 
 		// 执行函数体
-		var returnValue = e.evalWithReturnValue(fn.Body, funcEnv)
+		var returnValue = e.evalWithSpecialValue(fn.Body, funcEnv)
 		if e.Err != nil {
 			return nil
 		}

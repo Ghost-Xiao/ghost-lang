@@ -76,6 +76,9 @@ Icon
 Desktop.ini
 $RECYCLE.BIN/
 
+# System Object
+*.syso
+
 # Go specific
 # Keep go.mod and go.sum as they are essential for dependency management
 # go.mod

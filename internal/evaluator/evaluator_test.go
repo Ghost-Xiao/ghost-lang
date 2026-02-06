@@ -15,6 +15,7 @@ import (
 
 func TestEvaluator_Visit(t *testing.T) {
 	env := &object.Environment{
+		Name:  "test",
 		Store: make(map[string]*object.Symbol),
 		Outer: nil,
 	}
@@ -54,6 +55,7 @@ true;`,
 
 func TestEvaluator_VisitProgram(t *testing.T) {
 	env := &object.Environment{
+		Name:  "test",
 		Store: make(map[string]*object.Symbol),
 		Outer: nil,
 	}
@@ -93,6 +95,7 @@ true;`,
 
 func TestEvaluator_VisitIntExpression(t *testing.T) {
 	env := &object.Environment{
+		Name:  "test",
 		Store: make(map[string]*object.Symbol),
 		Outer: nil,
 	}
@@ -133,6 +136,7 @@ func TestEvaluator_VisitIntExpression(t *testing.T) {
 
 func TestEvaluator_VisitFloatExpression(t *testing.T) {
 	env := &object.Environment{
+		Name:  "test",
 		Store: make(map[string]*object.Symbol),
 		Outer: nil,
 	}
@@ -173,6 +177,7 @@ func TestEvaluator_VisitFloatExpression(t *testing.T) {
 
 func TestEvaluator_VisitBooleanExpression(t *testing.T) {
 	env := &object.Environment{
+		Name:  "test",
 		Store: make(map[string]*object.Symbol),
 		Outer: nil,
 	}
@@ -220,6 +225,7 @@ func TestEvaluator_VisitBooleanExpression(t *testing.T) {
 
 func TestEvaluator_VisitNullExpression(t *testing.T) {
 	env := &object.Environment{
+		Name:  "test",
 		Store: make(map[string]*object.Symbol),
 		Outer: nil,
 	}
@@ -258,6 +264,7 @@ func TestEvaluator_VisitNullExpression(t *testing.T) {
 
 func TestEvaluator_VisitStringExpression(t *testing.T) {
 	env := &object.Environment{
+		Name:  "test",
 		Store: make(map[string]*object.Symbol),
 		Outer: nil,
 	}
@@ -305,6 +312,7 @@ func TestEvaluator_VisitStringExpression(t *testing.T) {
 
 func TestEvaluator_VisitListExpression(t *testing.T) {
 	env := &object.Environment{
+		Name:  "test",
 		Store: make(map[string]*object.Symbol),
 		Outer: nil,
 	}
@@ -407,6 +415,7 @@ func TestEvaluator_VisitListExpression(t *testing.T) {
 
 func TestEvaluator_VisitIdentifierExpression(t *testing.T) {
 	env := &object.Environment{
+		Name: "test",
 		Store: map[string]*object.Symbol{
 			"a": {
 				Name: "a",
@@ -416,6 +425,7 @@ func TestEvaluator_VisitIdentifierExpression(t *testing.T) {
 			},
 		},
 		Outer: &object.Environment{
+			Name: "test_outer",
 			Store: map[string]*object.Symbol{
 				"b": {
 					Name: "b",
@@ -471,6 +481,7 @@ func TestEvaluator_VisitIdentifierExpression(t *testing.T) {
 
 func TestEvaluator_VisitVarInitializationExpression(t *testing.T) {
 	env := &object.Environment{
+		Name:  "test",
 		Store: make(map[string]*object.Symbol),
 		Outer: nil,
 	}
@@ -511,6 +522,7 @@ func TestEvaluator_VisitVarInitializationExpression(t *testing.T) {
 
 func TestEvaluator_VisitVarAssignmentExpression(t *testing.T) {
 	env := &object.Environment{
+		Name: "test",
 		Store: map[string]*object.Symbol{
 			"a": {
 				Name: "a",
@@ -575,6 +587,7 @@ func TestEvaluator_VisitVarAssignmentExpression(t *testing.T) {
 
 func TestEvaluator_VisitCompoundAssignmentExpression(t *testing.T) {
 	env := &object.Environment{
+		Name: "test",
 		Store: map[string]*object.Symbol{
 			"a": {
 				Name: "a",
@@ -637,6 +650,7 @@ func TestEvaluator_VisitCompoundAssignmentExpression(t *testing.T) {
 
 func TestEvaluator_VisitPrefixUnaryIncDecExpression(t *testing.T) {
 	env := &object.Environment{
+		Name: "test",
 		Store: map[string]*object.Symbol{
 			"a": {
 				Name: "a",
@@ -701,6 +715,7 @@ func TestEvaluator_VisitPrefixUnaryIncDecExpression(t *testing.T) {
 
 func TestEvaluator_VisitPostfixUnaryIncDecExpression(t *testing.T) {
 	env := &object.Environment{
+		Name: "test",
 		Store: map[string]*object.Symbol{
 			"a": {
 				Name: "a",
@@ -765,6 +780,7 @@ func TestEvaluator_VisitPostfixUnaryIncDecExpression(t *testing.T) {
 
 func TestEvaluator_VisitPrefixExpression(t *testing.T) {
 	env := &object.Environment{
+		Name:  "test",
 		Store: make(map[string]*object.Symbol),
 		Outer: nil,
 	}
@@ -805,6 +821,7 @@ func TestEvaluator_VisitPrefixExpression(t *testing.T) {
 
 func TestEvaluator_VisitBlockExpression(t *testing.T) {
 	env := &object.Environment{
+		Name:  "test",
 		Store: make(map[string]*object.Symbol),
 		Outer: nil,
 	}
@@ -845,6 +862,7 @@ func TestEvaluator_VisitBlockExpression(t *testing.T) {
 
 func TestEvaluator_VisitIfExpression(t *testing.T) {
 	env := &object.Environment{
+		Name:  "test",
 		Store: make(map[string]*object.Symbol),
 		Outer: nil,
 	}
@@ -899,6 +917,7 @@ func TestEvaluator_VisitCallExpression(t *testing.T) {
 	}
 
 	env := &object.Environment{
+		Name: "test",
 		Store: map[string]*object.Symbol{
 			"f": {
 				Name: "f",
@@ -913,6 +932,7 @@ func TestEvaluator_VisitCallExpression(t *testing.T) {
 						},
 					},
 					Env: &object.Environment{
+						Name:  "test_function",
 						Store: make(map[string]*object.Symbol),
 						Outer: nil,
 					},
@@ -948,6 +968,7 @@ func TestEvaluator_VisitCallExpression(t *testing.T) {
 						},
 					},
 					Env: &object.Environment{
+						Name:  "test_function",
 						Store: make(map[string]*object.Symbol),
 						Outer: nil,
 					},
@@ -979,6 +1000,7 @@ func TestEvaluator_VisitCallExpression(t *testing.T) {
 						},
 					},
 					Env: &object.Environment{
+						Name:  "test_function",
 						Store: make(map[string]*object.Symbol),
 						Outer: nil,
 					},
@@ -1080,6 +1102,7 @@ func TestEvaluator_VisitIndexExpression(t *testing.T) {
 	}
 
 	env := &object.Environment{
+		Name: "test",
 		Store: map[string]*object.Symbol{
 			"lst": {
 				Name: "lst",
