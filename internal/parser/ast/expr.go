@@ -314,6 +314,9 @@ func (vi *VarInitializationExpression) IsLvalue() bool {
 	return false
 }
 
+// Definition 是空方法，用于标识该接口为定义类型
+func (vi *VarInitializationExpression) Definition() {}
+
 // VarAssignmentExpression 是变量赋值表达式节点
 // 表示对变量进行赋值操作
 
@@ -629,5 +632,38 @@ func (ie *IndexExpression) Expression() {}
 
 // IsLvalue 方法，返回是否为左值
 func (ie *IndexExpression) IsLvalue() bool {
+	return true
+}
+
+// NamespaceAccessExpression 是命名空间访问表达式节点
+// 表示对命名空间成员的访问，如a::b、c::d等
+
+type NamespaceAccessExpression struct {
+	Target   Expression // 被访问的目标
+	Member   Expression // 成员名
+	PosStart *util.Pos  // 表达式的起始位置
+	PosEnd   *util.Pos  // 表达式的结束位置
+}
+
+// String 返回命名空间访问表达式的字符串表示
+// 格式为：<target>::<member>
+//
+// 返回值:
+//
+//	命名空间访问表达式的字符串表示
+func (ne *NamespaceAccessExpression) String() string {
+	var sb strings.Builder
+	sb.WriteString(ne.Target.String())
+	sb.WriteString("::")
+	sb.WriteString(ne.Member.String())
+	return sb.String()
+}
+
+// Expression 是标记方法，用于类型判断
+// 实现Expression接口
+func (ne *NamespaceAccessExpression) Expression() {}
+
+// IsLvalue 方法，返回是否为左值
+func (ne *NamespaceAccessExpression) IsLvalue() bool {
 	return true
 }

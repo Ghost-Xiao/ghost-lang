@@ -66,3 +66,28 @@ ReturnStatement ::= "return" Expression
 return 42;
 return x + y;
 ```
+
+## 命名空间声明语句(NamespaceDeclarationStatement)
+用于声明命名空间的语句，命名空间可以包含变量、函数等成员。
+
+**语法定义：**
+```
+NamespaceDeclarationStatement ::= "namespace" Identifier Statement
+```
+
+**示例：**
+```ghost
+namespace Array {
+    var array = [1, 2, 3, 4, 5];
+};
+
+namespace Utils {
+    func add(x, y) {
+        return x + y;
+    };
+};
+```
+
+**注意事项：**
+- 命名空间中的成员通过 `命名空间名::成员名` 的方式访问
+- 命名空间中的变量和函数在命名空间声明后即可访问

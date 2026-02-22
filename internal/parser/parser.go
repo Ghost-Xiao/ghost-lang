@@ -13,17 +13,18 @@ import (
 
 // 运算符优先级常量定义，数值越大优先级越高
 const (
-	LOWEST  = iota // 最低优先级
-	ASSIGN         // 赋值运算符优先级(=, +=, -=, *=, /= 等)
-	LOGIC          // 逻辑运算符优先级(&&, ||)
-	BIT            // 位运算符优先级(^, &, |, <<, >>)
-	EQUALS         // 相等性运算符优先级(==, !=)
-	COMPARE        // 比较运算符优先级(<, <=, >, >=)
-	SUM            // 加减运算符优先级(+, -)
-	MUL            // 乘除运算符优先级(*, /, %)
-	PREFIX         // 前缀运算符优先级(!, -, ~, +)
-	POSTFIX        // 后缀运算符优先级(++, --)
-	CALL           // 函数调用优先级(fn())
+	LOWEST    = iota // 最低优先级
+	ASSIGN           // 赋值运算符优先级(=, +=, -=, *=, /= 等)
+	LOGIC            // 逻辑运算符优先级(&&, ||)
+	BIT              // 位运算符优先级(^, &, |, <<, >>)
+	EQUALS           // 相等性运算符优先级(==, !=)
+	COMPARE          // 比较运算符优先级(<, <=, >, >=)
+	SUM              // 加减运算符优先级(+, -)
+	MUL              // 乘除运算符优先级(*, /, %)
+	PREFIX           // 前缀运算符优先级(!, -, ~, +)
+	POSTFIX          // 后缀运算符优先级(++, --)
+	CALL             // 函数调用优先级(fn())
+	NAMESPACE        // 命名空间访问符优先级(::)
 )
 
 // precedences 运算符优先级映射表，将token类型映射到对应的优先级常量
@@ -61,6 +62,7 @@ var precedences = map[string]int{
 	lexer.DECREMENT:         POSTFIX,
 	lexer.LPAREN:            CALL,
 	lexer.LBRACKET:          CALL,
+	lexer.DOUBLE_COLON:      NAMESPACE,
 }
 
 // Parser 语法解析器结构体，负责将词法分析器产生的token流解析为AST
@@ -154,6 +156,7 @@ func NewParser(l *lexer.Lexer) (*Parser, error) {
 		lexer.DECREMENT:         p.parsePostfixUnaryIncDecExpression,
 		lexer.LPAREN:            p.parseCallExpression,
 		lexer.LBRACKET:          p.parseIndexExpression,
+		lexer.DOUBLE_COLON:      p.parseNamespaceAccessExpression,
 	}
 	return p, nil
 }
@@ -253,6 +256,9 @@ func (p *Parser) parseStatement(posStart *util.Pos) ast.Statement {
 	case lexer.CONTINUE:
 		// 解析为continue语句
 		return p.parseContinueStatement(posStart)
+	case lexer.NAMESPACE:
+		// 解析为命名空间语句
+		return p.parseNamespaceStatement(posStart)
 	default:
 		// 解析为表达式语句
 		return p.parseExpressionStatement(posStart)
@@ -524,6 +530,35 @@ func (p *Parser) parseContinueStatement(posStart *util.Pos) *ast.ContinueStateme
 		PosStart: posStart,
 		PosEnd:   p.CurrToken.PosEnd.Copy(),
 	}
+}
+
+// parseNamespaceStatement 解析命名空间语句
+//
+// 参数:
+//
+//	posStart - 语句的起始位置
+//
+// 返回值:
+//
+//	namespace语句节点NamespaceStatement
+func (p *Parser) parseNamespaceStatement(posStart *util.Pos) *ast.NamespaceStatement {
+	ns := &ast.NamespaceStatement{
+		PosStart: posStart,
+	}
+	p.Advance()
+	// 解析命名空间名
+	ns.Name = p.parseIdentifierExpression(p.CurrToken.PosStart.Copy())
+	if p.Err != nil {
+		return nil
+	}
+	p.Advance()
+	// 解析命名空间体
+	ns.Body = p.parseStatement(p.CurrToken.PosStart.Copy())
+	if p.Err != nil {
+		return nil
+	}
+	ns.PosEnd = p.CurrToken.PosEnd.Copy()
+	return ns
 }
 
 // parseExpressionStatement 解析表达式语句(由单个表达式组成的语句)
@@ -1119,4 +1154,30 @@ func (p *Parser) parseIndexExpression(left ast.Expression, posStart *util.Pos) a
 		PosEnd:   p.CurrToken.PosEnd.Copy(),
 	}
 	return ie
+}
+
+// parseNamespaceAccessExpression 解析命名空间访问表达式
+//
+// 参数:
+//
+//	left - 左侧目标表达式
+//	posStart - 表达式的起始位置
+//
+// 返回值:
+//
+//	命名空间访问表达式节点 NamespaceAccessExpression
+func (p *Parser) parseNamespaceAccessExpression(left ast.Expression, posStart *util.Pos) ast.Expression {
+	ne := &ast.NamespaceAccessExpression{
+		Target:   left,
+		PosStart: posStart,
+	}
+	p.Advance()
+	// 解析成员名
+	member := p.parseIdentifierExpression(p.CurrToken.PosStart.Copy())
+	if p.Err != nil {
+		return nil
+	}
+	ne.Member = member
+	ne.PosEnd = p.CurrToken.PosEnd.Copy()
+	return ne
 }

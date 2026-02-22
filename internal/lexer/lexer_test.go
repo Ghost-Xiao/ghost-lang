@@ -219,6 +219,26 @@ func TestLexer_Operators(t *testing.T) {
 				PosEnd:   util.NewPos(1, 4, 3, "<test>", "...x"),
 			},
 		},
+		{
+			name:  "Single Colon Operator",
+			input: ":",
+			expect: &Token{
+				Type:     COLON,
+				Literal:  ":",
+				PosStart: util.NewPos(1, 1, 0, "<test>", ":"),
+				PosEnd:   util.NewPos(1, 2, 1, "<test>", ":"),
+			},
+		},
+		{
+			name:  "Double Colon Operator",
+			input: "::",
+			expect: &Token{
+				Type:     DOUBLE_COLON,
+				Literal:  "::",
+				PosStart: util.NewPos(1, 1, 0, "<test>", "::"),
+				PosEnd:   util.NewPos(1, 3, 2, "<test>", "::"),
+			},
+		},
 	}
 
 	for _, tt := range tests {

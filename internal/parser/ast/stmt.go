@@ -129,6 +129,9 @@ func (fs *FunctionDeclarationStatement) String() string {
 // 实现Statement接口
 func (fs *FunctionDeclarationStatement) Statement() {}
 
+// Definition 是空方法，用于标识该接口为定义类型
+func (fs *FunctionDeclarationStatement) Definition() {}
+
 // ReturnStatement 是返回语句节点
 // 用于返回值
 
@@ -218,3 +221,42 @@ func (cs *ContinueStatement) String() string {
 // Statement 是标记方法，用于类型判断
 // 实现Statement接口
 func (cs *ContinueStatement) Statement() {}
+
+// Definition 是定义接口，包含所有定义表达式/语句
+
+type Definition interface {
+	// Definition 空方法，用于标识该接口为定义类型
+	Definition()
+}
+
+// NamespaceStatement 是namespace语句节点
+// 用于定义命名空间
+
+type NamespaceStatement struct {
+	Name     Expression // 命名空间名
+	Body     Statement  // 命名空间体
+	PosStart *util.Pos  // 语句的起始位置
+	PosEnd   *util.Pos  // 语句的结束位置
+}
+
+// String 返回namespace语句的字符串表示
+// 格式为：namespace <name> <body>
+//
+// 返回值:
+//
+//	namespace语句的字符串表示
+func (ns *NamespaceStatement) String() string {
+	var sb strings.Builder
+	sb.WriteString("namespace ")
+	sb.WriteString(ns.Name.String())
+	sb.WriteString(" ")
+	sb.WriteString(ns.Body.String())
+	return sb.String()
+}
+
+// Statement 是标记方法，用于类型判断
+// 实现Statement接口
+func (ns *NamespaceStatement) Statement() {}
+
+// Definition 是空方法，用于标识该接口为定义类型
+func (ns *NamespaceStatement) Definition() {}

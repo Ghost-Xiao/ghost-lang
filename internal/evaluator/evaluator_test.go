@@ -1152,3 +1152,68 @@ func TestEvaluator_VisitIndexExpression(t *testing.T) {
 		})
 	}
 }
+
+func TestEvaluator_NamespaceAccessExpression(t *testing.T) {
+	f := &frame.Frame{
+		FuncName: "<test>",
+		Parent:   nil,
+		PosStart: nil,
+		PosEnd:   nil,
+	}
+
+	env := &object.Environment{
+		Name: "test",
+		Store: map[string]*object.Symbol{
+			"A": {
+				Name: "A",
+				Value: &object.Namespace{
+					Name: "A",
+					Member: &object.Environment{
+						Name: "A",
+						Store: map[string]*object.Symbol{
+							"a": {
+								Name:    "a",
+								Value:   &object.Int{Value: 1},
+								IsConst: false,
+							},
+						},
+						Outer: &object.Environment{
+							Name:  "test",
+							Store: make(map[string]*object.Symbol),
+							Outer: nil,
+						},
+					},
+				},
+				IsConst: true,
+			},
+		},
+		Outer: nil,
+	}
+
+	tests := []struct {
+		name     string
+		input    string
+		excepted object.Object
+	}{
+		{
+			name:  "Namespace Access",
+			input: `A::a;`,
+			excepted: &object.Int{
+				Value: 1,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.NewLexer("<test>", tt.input)
+			p, _ := parser.NewParser(l)
+			program := p.ParseProgram()
+			e := NewEvaluator(f)
+			val := e.evalNamespaceAccessExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.NamespaceAccessExpression), env)
+			if !reflect.DeepEqual(val, tt.excepted) {
+				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
+			}
+		})
+	}
+}

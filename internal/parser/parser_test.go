@@ -429,6 +429,64 @@ func TestParser_ParseEllipsisStatement(t *testing.T) {
 	}
 }
 
+func TestParser_ParseNamespaceStatement(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected *ast.NamespaceStatement
+	}{
+		{
+			name:  "Namespace Statement",
+			input: "namespace a var i = 1;",
+			expected: &ast.NamespaceStatement{
+				Name: &ast.IdentifierExpression{
+					Name:     "a",
+					PosStart: util.NewPos(1, 11, 10, "<test>", "namespace a var i = 1;"),
+					PosEnd:   util.NewPos(1, 12, 11, "<test>", "namespace a var i = 1;"),
+				},
+				Body: &ast.ExpressionStatement{
+					Expr: &ast.VarInitializationExpression{
+						IsConst: false,
+						Name: &ast.IdentifierExpression{
+							Name:     "i",
+							PosStart: util.NewPos(1, 17, 16, "<test>", "namespace a var i = 1;"),
+							PosEnd:   util.NewPos(1, 18, 17, "<test>", "namespace a var i = 1;"),
+						},
+						Value: &ast.IntExpression{
+							Value:    1,
+							PosStart: util.NewPos(1, 21, 20, "<test>", "namespace a var i = 1;"),
+							PosEnd:   util.NewPos(1, 22, 21, "<test>", "namespace a var i = 1;"),
+						},
+						PosStart: util.NewPos(1, 13, 12, "<test>", "namespace a var i = 1;"),
+						PosEnd:   util.NewPos(1, 22, 21, "<test>", "namespace a var i = 1;"),
+					},
+					PosStart: util.NewPos(1, 13, 12, "<test>", "namespace a var i = 1;"),
+					PosEnd:   util.NewPos(1, 22, 21, "<test>", "namespace a var i = 1;"),
+				},
+				PosStart: util.NewPos(1, 1, 0, "<test>", "namespace a var i = 1;"),
+				PosEnd:   util.NewPos(1, 22, 21, "<test>", "namespace a var i = 1;"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.NewLexer("<test>", tt.input)
+			p, _ := NewParser(l)
+			program := p.ParseProgram()
+			expr := program.Statements[0].(*ast.NamespaceStatement)
+
+			if p.Err != nil {
+				t.Errorf("err = %+v, expected nil", p.Err)
+			}
+
+			if !reflect.DeepEqual(expr, tt.expected) {
+				t.Errorf("expected %+v, got %+v", tt.expected, expr)
+			}
+		})
+	}
+}
+
 func TestParser_ParsePrefixExpression(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1925,7 +1983,7 @@ func TestParser_ParseListExpression(t *testing.T) {
 	}
 }
 
-func TestParser_ParseIndexExpression_Structure(t *testing.T) {
+func TestParser_ParseIndexExpression(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
@@ -1963,6 +2021,50 @@ func TestParser_ParseIndexExpression_Structure(t *testing.T) {
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
 			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.IndexExpression)
+
+			if p.Err != nil {
+				t.Errorf("err = %+v, expected nil", p.Err)
+			}
+
+			if !reflect.DeepEqual(expr, tt.expected) {
+				t.Errorf("expected %+v, got %+v", tt.expected, expr)
+			}
+		})
+	}
+}
+
+func TestParser_ParseNamespaceAccessExpression(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected *ast.NamespaceAccessExpression
+	}{
+		{
+			name:  "Namespace Access",
+			input: "a::b;",
+			expected: &ast.NamespaceAccessExpression{
+				Target: &ast.IdentifierExpression{
+					Name:     "a",
+					PosStart: util.NewPos(1, 1, 0, "<test>", "a::b;"),
+					PosEnd:   util.NewPos(1, 2, 1, "<test>", "a::b;"),
+				},
+				Member: &ast.IdentifierExpression{
+					Name:     "b",
+					PosStart: util.NewPos(1, 4, 3, "<test>", "a::b;"),
+					PosEnd:   util.NewPos(1, 5, 4, "<test>", "a::b;"),
+				},
+				PosStart: util.NewPos(1, 1, 0, "<test>", "a::b;"),
+				PosEnd:   util.NewPos(1, 5, 4, "<test>", "a::b;"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.NewLexer("<test>", tt.input)
+			p, _ := NewParser(l)
+			program := p.ParseProgram()
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.NamespaceAccessExpression)
 
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)

@@ -302,3 +302,21 @@ IndexExpression ::= Expression "[" Expression "]"
 list[0];
 matrix[1][2];
 ```
+
+## 命名空间访问表达式(NamespaceAccessExpression)
+用于访问命名空间中的成员的表达式节点。
+
+**语法定义：**
+```
+NamespaceAccessExpression ::= Identifier "::" Identifier
+```
+
+**示例：**
+```ghost
+Array::array;
+Utils::add;
+```
+
+**注意事项：**
+- 命名空间访问表达式用于访问命名空间中定义的变量或函数
+- 命名空间访问表达式可以作为左值使用，用于修改命名空间中的变量
