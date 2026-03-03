@@ -81,8 +81,8 @@ func (l *Lexer) NextToken() (*Token, error) {
 				if err != nil {
 					return &Token{Type: ILLEGAL, Literal: "ILLEGAL", PosStart: posStart, PosEnd: l.NextPos.Copy()}, err
 				}
-				// 根据是否包含小数点判断是整数还是浮点数
-				if strings.Contains(num, ".") {
+				// 根据是否包含小数点或包含e/E判断是整数还是浮点数
+				if strings.Contains(num, ".") || strings.Contains(num, "e") || strings.Contains(num, "E") {
 					return &Token{Type: FLOAT, Literal: num, PosStart: posStart, PosEnd: l.NextPos.Copy()}, nil
 				}
 				return &Token{Type: INT, Literal: num, PosStart: posStart, PosEnd: l.NextPos.Copy()}, nil
@@ -232,22 +232,84 @@ func (l *Lexer) skipMultilineComment() error {
 //	解析出的数字字符串和可能的错误
 func (l *Lexer) scanNumber() (string, error) {
 	var num string
-	var dotCount int // 小数点计数器，用于检查是否有多个小数点
-	// 扫描数字字符和小数点
-	for isNumber(l.CurrPos.Char) || l.CurrPos.Char == '.' {
-		if l.CurrPos.Char == '.' {
-			dotCount++
-			// 检查是否有多个小数点，浮点数只能有一个小数点
-			if dotCount > 1 {
-				return "", &IllegalTokenError{
-					Message:  "illegal float literal.",
-					PosStart: l.CurrPos.Copy(),
-					PosEnd:   l.NextPos.Copy(),
+	// 如果是0，且下个字符是b/B/o/O/x/X，说明是进制数
+	if l.CurrPos.Char == '0' {
+		switch l.NextPos.Char {
+		case 'b', 'B':
+			// 扫描二进制数
+			num += "0b"
+			l.NextChar()
+			l.NextChar()
+			for '0' <= l.CurrPos.Char && l.CurrPos.Char <= '1' {
+				num += string(l.CurrPos.Char)
+				l.NextChar()
+			}
+		case 'o', 'O':
+			// 扫描八进制数
+			num += "0o"
+			l.NextChar()
+			l.NextChar()
+			for '0' <= l.CurrPos.Char && l.CurrPos.Char <= '7' {
+				num += string(l.CurrPos.Char)
+				l.NextChar()
+			}
+		case 'x', 'X':
+			// 扫描十六进制数
+			num += "0x"
+			l.NextChar()
+			l.NextChar()
+			for '0' <= l.CurrPos.Char && l.CurrPos.Char <= '9' || 'a' <= l.CurrPos.Char && l.CurrPos.Char <= 'f' || 'A' <= l.CurrPos.Char && l.CurrPos.Char <= 'F' {
+				num += string(l.CurrPos.Char)
+				l.NextChar()
+			}
+		default:
+			// 0到7之间的数字，说明是八进制数
+			if '0' <= l.NextPos.Char && l.NextPos.Char <= '7' {
+				// 扫描八进制数
+				num += "0o"
+				l.NextChar()
+				for '0' <= l.CurrPos.Char && l.CurrPos.Char <= '7' {
+					num += string(l.CurrPos.Char)
+					l.NextChar()
 				}
 			}
 		}
-		num += string(l.CurrPos.Char)
-		l.NextChar()
+	}
+	// 扫描十进制数
+	if num == "" {
+		var dotCount int // 小数点计数器，用于检查是否有多个小数点
+		// 扫描数字字符和小数点
+		for isNumber(l.CurrPos.Char) || l.CurrPos.Char == '.' {
+			// 如果是小数点，增加小数点计数器
+			if l.CurrPos.Char == '.' {
+				dotCount++
+				// 检查是否有多个小数点，浮点数只能有一个小数点
+				if dotCount > 1 {
+					return "", &IllegalTokenError{
+						Message:  "illegal float literal.",
+						PosStart: l.CurrPos.Copy(),
+						PosEnd:   l.NextPos.Copy(),
+					}
+				}
+			}
+			num += string(l.CurrPos.Char)
+			l.NextChar()
+		}
+		// 如果是e或E，说明是科学计数法
+		if l.CurrPos.Char == 'e' || l.CurrPos.Char == 'E' {
+			num += string(l.CurrPos.Char)
+			l.NextChar()
+			// 扫描符号(+/-)
+			if l.CurrPos.Char == '+' || l.CurrPos.Char == '-' {
+				num += string(l.CurrPos.Char)
+				l.NextChar()
+			}
+			// 扫描指数部分
+			for isNumber(l.CurrPos.Char) {
+				num += string(l.CurrPos.Char)
+				l.NextChar()
+			}
+		}
 	}
 	l.Backup()
 	return num, nil

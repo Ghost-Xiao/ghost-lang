@@ -2,6 +2,7 @@ package object
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"unicode/utf8"
@@ -537,9 +538,14 @@ func (bf *BuiltinFunction) Index(other Object, posStart, posEnd *util.Pos, frame
 	}
 }
 
-var Builtins = map[string]*BuiltinFunction{
+// Builtins 是内建函数和常量
+var Builtins = map[string]Object{
+	// inf常量
+	"inf": &Float{Value: math.Inf(1)},
+	// nan常量
+	"nan": &Float{Value: math.NaN()},
 	// print函数
-	"print": {
+	"print": &BuiltinFunction{
 		Name:      "print",
 		Parameter: []string{"a"},
 		DefaultValue: []Object{
@@ -559,7 +565,7 @@ var Builtins = map[string]*BuiltinFunction{
 		},
 	},
 	// println函数
-	"println": {
+	"println": &BuiltinFunction{
 		Name:      "println",
 		Parameter: []string{"a"},
 		DefaultValue: []Object{
@@ -580,7 +586,7 @@ var Builtins = map[string]*BuiltinFunction{
 		},
 	},
 	// len函数
-	"len": {
+	"len": &BuiltinFunction{
 		Name:      "len",
 		Parameter: []string{"a"},
 		DefaultValue: []Object{
@@ -602,6 +608,47 @@ var Builtins = map[string]*BuiltinFunction{
 					PosEnd:   posEnd,
 				}
 			}
+		},
+	},
+	// power函数
+	"power": &BuiltinFunction{
+		Name:      "power",
+		Parameter: []string{"a", "n"},
+		DefaultValue: []Object{
+			nil,
+		},
+		HaveVariadic: false,
+		Fn: func(f *frame.Frame, posStart, posEnd *util.Pos, args ...Object) (Object, error) {
+			a := args[0]
+			n := args[1]
+			var base, exp float64
+			switch a := a.(type) {
+			case *Int:
+				base = float64(a.Value)
+			case *Float:
+				base = a.Value
+			default:
+				return nil, &TypeError{
+					Frame:    f,
+					Message:  "power() arguments must be integers or floats.",
+					PosStart: posStart,
+					PosEnd:   posEnd,
+				}
+			}
+			switch n := n.(type) {
+			case *Int:
+				exp = float64(n.Value)
+			case *Float:
+				exp = n.Value
+			default:
+				return nil, &TypeError{
+					Frame:    f,
+					Message:  "power() arguments must be integers or floats.",
+					PosStart: posStart,
+					PosEnd:   posEnd,
+				}
+			}
+			return &Float{Value: math.Pow(base, exp)}, nil
 		},
 	},
 }

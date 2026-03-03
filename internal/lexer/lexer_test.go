@@ -95,6 +95,46 @@ func TestLexer_Numbers(t *testing.T) {
 				PosEnd:   util.NewPos(1, 6, 5, "<test>", "12.34"),
 			},
 		},
+		{
+			name:  "Binary Number",
+			input: "0b1010",
+			expect: &Token{
+				Type:     INT,
+				Literal:  "0b1010",
+				PosStart: util.NewPos(1, 1, 0, "<test>", "0b1010"),
+				PosEnd:   util.NewPos(1, 7, 6, "<test>", "0b1010"),
+			},
+		},
+		{
+			name:  "Octal Number",
+			input: "0o10",
+			expect: &Token{
+				Type:     INT,
+				Literal:  "0o10",
+				PosStart: util.NewPos(1, 1, 0, "<test>", "0o10"),
+				PosEnd:   util.NewPos(1, 5, 4, "<test>", "0o10"),
+			},
+		},
+		{
+			name:  "Hexadecimal Number",
+			input: "0x10",
+			expect: &Token{
+				Type:     INT,
+				Literal:  "0x10",
+				PosStart: util.NewPos(1, 1, 0, "<test>", "0x10"),
+				PosEnd:   util.NewPos(1, 5, 4, "<test>", "0x10"),
+			},
+		},
+		{
+			name:  "Exponential Notation",
+			input: "1.23e-4",
+			expect: &Token{
+				Type:     FLOAT,
+				Literal:  "1.23e-4",
+				PosStart: util.NewPos(1, 1, 0, "<test>", "1.23e-4"),
+				PosEnd:   util.NewPos(1, 8, 7, "<test>", "1.23e-4"),
+			},
+		},
 	}
 
 	for _, tt := range tests {

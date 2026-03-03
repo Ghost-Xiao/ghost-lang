@@ -30,7 +30,16 @@ func (f *Float) Type() string {
 //
 //	string - 格式化的字符串表示
 func (f *Float) String() string {
-	return fmt.Sprintf("%f", f.Value)
+	if math.IsInf(f.Value, 1) {
+		return "inf"
+	}
+	if math.IsInf(f.Value, -1) {
+		return "-inf"
+	}
+	if math.IsNaN(f.Value) {
+		return "nan"
+	}
+	return fmt.Sprintf("%g", f.Value)
 }
 
 // Negative 对值进行负运算

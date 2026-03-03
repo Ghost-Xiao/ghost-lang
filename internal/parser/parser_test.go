@@ -1004,6 +1004,33 @@ func TestParser_ParseIntegerExpression(t *testing.T) {
 				PosEnd:   util.NewPos(1, 4, 3, "<test>", "123;"),
 			},
 		},
+		{
+			name:  "Binary Number",
+			input: "0b1010;",
+			expected: &ast.IntExpression{
+				Value:    10,
+				PosStart: util.NewPos(1, 1, 0, "<test>", "0b1010;"),
+				PosEnd:   util.NewPos(1, 7, 6, "<test>", "0b1010;"),
+			},
+		},
+		{
+			name:  "Octal Number",
+			input: "0o10;",
+			expected: &ast.IntExpression{
+				Value:    8,
+				PosStart: util.NewPos(1, 1, 0, "<test>", "0o10;"),
+				PosEnd:   util.NewPos(1, 5, 4, "<test>", "0o10;"),
+			},
+		},
+		{
+			name:  "Hexadecimal Number",
+			input: "0x1F;",
+			expected: &ast.IntExpression{
+				Value:    31,
+				PosStart: util.NewPos(1, 1, 0, "<test>", "0x1F;"),
+				PosEnd:   util.NewPos(1, 5, 4, "<test>", "0x1F;"),
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1045,6 +1072,15 @@ func TestParser_ParseFloatExpression(t *testing.T) {
 				Value:    0.75,
 				PosStart: util.NewPos(1, 1, 0, "<test>", "0.75;"),
 				PosEnd:   util.NewPos(1, 5, 4, "<test>", "0.75;"),
+			},
+		},
+		{
+			name:  "Exponential Notation",
+			input: "1.23e-4;",
+			expected: &ast.FloatExpression{
+				Value:    1.23e-4,
+				PosStart: util.NewPos(1, 1, 0, "<test>", "1.23e-4;"),
+				PosEnd:   util.NewPos(1, 8, 7, "<test>", "1.23e-4;"),
 			},
 		},
 	}

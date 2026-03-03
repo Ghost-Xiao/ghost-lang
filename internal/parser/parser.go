@@ -655,7 +655,7 @@ func (p *Parser) parsePrefixExpression(posStart *util.Pos) ast.Expression {
 //	整数表达式节点IntExpression
 func (p *Parser) parseIntegerExpression(posStart *util.Pos) ast.Expression {
 	// 将token字面量转换为int64类型
-	num, ok := strconv.ParseInt(p.CurrToken.Literal, 10, 64)
+	num, ok := strconv.ParseInt(p.CurrToken.Literal, 0, 64)
 	if ok != nil {
 		// 转换失败时返回非法token错误
 		p.Err = &lexer.IllegalTokenError{
