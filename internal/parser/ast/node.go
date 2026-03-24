@@ -8,7 +8,6 @@ import (
 
 // Node 节点接口，是所有AST节点的基接口
 // 定义了所有节点共有的基本操作
-
 type Node interface {
 	// String 返回节点的字符串表示，用于调试和AST可视化
 	// 返回值:
@@ -18,7 +17,6 @@ type Node interface {
 
 // Expression 表达式接口，表示可计算值的AST节点
 // 继承Node接口，添加Expression方法作为类型标记
-
 type Expression interface {
 	Node
 	// Expression 空方法，用于标识该接口为表达式类型
@@ -29,7 +27,6 @@ type Expression interface {
 
 // Statement 语句接口，表示执行操作的AST节点
 // 继承Node接口，添加Statement方法作为类型标记
-
 type Statement interface {
 	Node
 	// Statement 空方法，用于标识该接口为语句类型
@@ -38,7 +35,6 @@ type Statement interface {
 
 // Program 是AST的根节点，表示整个程序
 // 包含一系列按顺序执行的语句节点及位置信息
-
 type Program struct {
 	Statements []Statement // 程序中的语句列表
 	PosStart   *util.Pos   // 程序的起始位置

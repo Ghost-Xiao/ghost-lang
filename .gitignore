@@ -26,6 +26,7 @@ go.work
 .idea/
 .codebuddy/
 .trae/
+.qoder/
 
 # Temporary folders
 tmp/

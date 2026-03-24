@@ -12,7 +12,7 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 Set-Location -Path "$PSScriptRoot/.."
 
 # 配置参数
-$Version = "0.2.0"
+$Version = "0.3.0"
 $OutputDir = "bin"
 $MainPackage = "./cmd/ghost"  # 相对于项目根目录
 

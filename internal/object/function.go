@@ -11,7 +11,6 @@ import (
 
 // Function 表示函数类型，实现了Object接口
 // 支持的操作包括调用函数等
-
 type Function struct {
 	Name      string           // 函数名
 	Parameter []*ast.Parameter // 参数

@@ -2,7 +2,6 @@ package object
 
 // Environment 表示程序运行时的上下文环境，用于管理符号表和上下文嵌套关系
 // 在函数调用、作用域切换等场景中使用，实现变量的作用域隔离和查找
-
 type Environment struct {
 	Name  string             // 环境名称
 	Store map[string]*Symbol // 变量名到值的映射

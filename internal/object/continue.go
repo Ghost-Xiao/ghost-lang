@@ -6,7 +6,6 @@ import (
 )
 
 // ContinueValue 表示continue语句的返回值
-
 type ContinueValue struct{}
 
 // Type 返回值的类型

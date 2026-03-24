@@ -504,6 +504,16 @@ func TestEvaluator_VisitVarInitializationExpression(t *testing.T) {
 				Value: 1,
 			},
 		},
+		{
+			name:  "Destructuring Assignment",
+			input: "var [c, b] = [1, 2];",
+			excepted: &object.List{
+				Elements: []object.Object{
+					&object.Int{Value: 1},
+					&object.Int{Value: 2},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -542,6 +552,27 @@ func TestEvaluator_VisitVarAssignmentExpression(t *testing.T) {
 				},
 				IsConst: false,
 			},
+			"a1": {
+				Name: "a1",
+				Value: &object.Int{
+					Value: 1,
+				},
+				IsConst: false,
+			},
+			"a2": {
+				Name: "a2",
+				Value: &object.Int{
+					Value: 2,
+				},
+				IsConst: false,
+			},
+			"a3": {
+				Name: "a3",
+				Value: &object.Int{
+					Value: 3,
+				},
+				IsConst: false,
+			},
 		},
 		Outer: nil,
 	}
@@ -568,6 +599,17 @@ func TestEvaluator_VisitVarAssignmentExpression(t *testing.T) {
 			name:     "List Index Assignment",
 			input:    "l[0] = 4;",
 			excepted: &object.Int{Value: 4},
+		},
+		{
+			name:  "Destructuring Assignment",
+			input: "[a1, a2, a3] = [4, 5, 6];",
+			excepted: &object.List{
+				Elements: []object.Object{
+					&object.Int{Value: 4},
+					&object.Int{Value: 5},
+					&object.Int{Value: 6},
+				},
+			},
 		},
 	}
 
@@ -1211,6 +1253,100 @@ func TestEvaluator_NamespaceAccessExpression(t *testing.T) {
 			program := p.ParseProgram()
 			e := NewEvaluator(f)
 			val := e.evalNamespaceAccessExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.NamespaceAccessExpression), env)
+			if !reflect.DeepEqual(val, tt.excepted) {
+				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
+			}
+		})
+	}
+}
+
+func TestEvaluator_RangeExpression(t *testing.T) {
+	f := &frame.Frame{
+		FuncName: "<test>",
+		Parent:   nil,
+		PosStart: nil,
+		PosEnd:   nil,
+	}
+
+	env := &object.Environment{
+		Name:  "test",
+		Store: make(map[string]*object.Symbol),
+		Outer: nil,
+	}
+
+	tests := []struct {
+		name     string
+		input    string
+		excepted object.Object
+	}{
+		{
+			name:  "Range Expression",
+			input: `1..3;`,
+			excepted: &object.List{
+				Elements: []object.Object{
+					&object.Int{
+						Value: 1,
+					},
+					&object.Int{
+						Value: 2,
+					},
+					&object.Int{
+						Value: 3,
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.NewLexer("<test>", tt.input)
+			p, _ := parser.NewParser(l)
+			program := p.ParseProgram()
+			e := NewEvaluator(f)
+			val := e.evalRangeExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.RangeExpression), env)
+			if !reflect.DeepEqual(val, tt.excepted) {
+				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
+			}
+		})
+	}
+}
+
+func TestEvaluator_ContainsExpression(t *testing.T) {
+	f := &frame.Frame{
+		FuncName: "<test>",
+		Parent:   nil,
+		PosStart: nil,
+		PosEnd:   nil,
+	}
+
+	env := &object.Environment{
+		Name:  "test",
+		Store: make(map[string]*object.Symbol),
+		Outer: nil,
+	}
+
+	tests := []struct {
+		name     string
+		input    string
+		excepted object.Object
+	}{
+		{
+			name:  "Contains Expression",
+			input: `[1, 2, 3] contains 1;`,
+			excepted: &object.Bool{
+				Value: true,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.NewLexer("<test>", tt.input)
+			p, _ := parser.NewParser(l)
+			program := p.ParseProgram()
+			e := NewEvaluator(f)
+			val := e.evalContainsExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.ContainsExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
 			}

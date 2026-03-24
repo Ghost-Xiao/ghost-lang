@@ -10,7 +10,6 @@ import (
 
 // String 表示字符串值类型，实现了Object接口
 // 用于存储和操作文本数据
-
 type String struct {
 	Value string // 字符串的实际值
 }
@@ -611,4 +610,13 @@ func (s *String) Set(index Object, value Object, posStart, posEnd *util.Pos, fra
 		PosStart: posStart,
 		PosEnd:   posEnd,
 	}
+}
+
+// Length 返回字符串的长度
+//
+// 返回值:
+//
+//	int64 - 字符串的长度
+func (s *String) Length() int64 {
+	return int64(len(s.Value))
 }

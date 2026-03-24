@@ -8,7 +8,6 @@ import (
 
 // ForStatement 是for语句节点
 // 用于执行for语句
-
 type ForStatement struct {
 	Initialization Statement  // 初始化语句
 	Condition      Expression // 条件表达式
@@ -43,7 +42,6 @@ func (fs *ForStatement) Statement() {}
 
 // ExpressionStatement 是表达式语句节点
 // 用于将表达式作为独立语句执行
-
 type ExpressionStatement struct {
 	Expr     Expression // 包裹的表达式
 	PosStart *util.Pos  // 语句的起始位置
@@ -65,7 +63,6 @@ func (es *ExpressionStatement) String() string {
 func (es *ExpressionStatement) Statement() {}
 
 // Parameter 是函数参数节点
-
 type Parameter struct {
 	Name         *IdentifierExpression // 参数名
 	DefaultValue Expression            // 默认值
@@ -94,7 +91,6 @@ func (p *Parameter) String() string {
 }
 
 // FunctionDeclarationStatement 是函数声明节点
-
 type FunctionDeclarationStatement struct {
 	Name      Expression   // 函数名
 	Parameter []*Parameter // 参数
@@ -134,7 +130,6 @@ func (fs *FunctionDeclarationStatement) Definition() {}
 
 // ReturnStatement 是返回语句节点
 // 用于返回值
-
 type ReturnStatement struct {
 	ReturnValue Expression // 返回的表达式
 	PosStart    *util.Pos  // 语句的起始位置
@@ -157,7 +152,6 @@ func (rs *ReturnStatement) Statement() {}
 
 // EllipsisStatement 是省略语句节点
 // 用于表示省略语句(...;)
-
 type EllipsisStatement struct {
 	PosStart *util.Pos // 语句的起始位置
 	PosEnd   *util.Pos // 语句的结束位置
@@ -180,7 +174,6 @@ func (es *EllipsisStatement) Statement() {}
 
 // BreakStatement 是break语句节点
 // 用于跳出循环
-
 type BreakStatement struct {
 	PosStart *util.Pos // 语句的起始位置
 	PosEnd   *util.Pos // 语句的结束位置
@@ -202,7 +195,6 @@ func (bs *BreakStatement) Statement() {}
 
 // ContinueStatement 是continue语句节点
 // 用于继续循环
-
 type ContinueStatement struct {
 	PosStart *util.Pos // 语句的起始位置
 	PosEnd   *util.Pos // 语句的结束位置
@@ -223,7 +215,6 @@ func (cs *ContinueStatement) String() string {
 func (cs *ContinueStatement) Statement() {}
 
 // Definition 是定义接口，包含所有定义表达式/语句
-
 type Definition interface {
 	// Definition 空方法，用于标识该接口为定义类型
 	Definition()
@@ -231,7 +222,6 @@ type Definition interface {
 
 // NamespaceStatement 是namespace语句节点
 // 用于定义命名空间
-
 type NamespaceStatement struct {
 	Name     Expression // 命名空间名
 	Body     Statement  // 命名空间体
@@ -260,3 +250,52 @@ func (ns *NamespaceStatement) Statement() {}
 
 // Definition 是空方法，用于标识该接口为定义类型
 func (ns *NamespaceStatement) Definition() {}
+
+// ForEachStatement 是foreach语句节点
+// 用于执行foreach语句
+type ForEachStatement struct {
+	Index    Expression // 索引变量
+	Value    Expression // 值变量
+	IsNewVar bool       // 索引变量和值变量是否是新定义的变量
+	Target   Expression // 目标表达式
+	Step     Expression // 步长表达式
+	Body     Statement  // 循环体语句
+	PosStart *util.Pos  // 语句的起始位置
+	PosEnd   *util.Pos  // 语句的结束位置
+}
+
+// String 返回foreach语句的字符串表示
+// 格式为：foreach var [<index>, <value>] in <target> step <step> <body>
+//
+// 返回值:
+//
+//	foreach语句的字符串表示
+func (fi *ForEachStatement) String() string {
+	var sb strings.Builder
+	sb.WriteString("foreach ")
+	if fi.IsNewVar {
+		sb.WriteString("var ")
+	}
+	if fi.Index != nil {
+		sb.WriteString("[")
+		sb.WriteString(fi.Index.String())
+		sb.WriteString(", ")
+	}
+	sb.WriteString(fi.Value.String())
+	if fi.Index != nil {
+		sb.WriteString("]")
+	}
+	sb.WriteString(" in ")
+	sb.WriteString(fi.Target.String())
+	if fi.Step != nil {
+		sb.WriteString(" step ")
+		sb.WriteString(fi.Step.String())
+	}
+	sb.WriteString(" ")
+	sb.WriteString(fi.Body.String())
+	return sb.String()
+}
+
+// Statement 是标记方法，用于类型判断
+// 实现Statement接口
+func (fi *ForEachStatement) Statement() {}

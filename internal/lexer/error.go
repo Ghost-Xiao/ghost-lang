@@ -10,7 +10,6 @@ import (
 
 // IllegalTokenError 非法令牌错误，表示词法分析时遇到无效的令牌
 // 实现 error 接口
-
 type IllegalTokenError struct {
 	Message  string    // 错误描述文本
 	PosStart *util.Pos // 错误起始位置
@@ -41,7 +40,6 @@ func (e *IllegalTokenError) Error() string {
 
 // SyntaxError 语法错误，表示遇到非法语法
 // 实现 error 接口
-
 type SyntaxError struct {
 	Message  string    // 错误描述文本
 	PosStart *util.Pos // 错误起始位置

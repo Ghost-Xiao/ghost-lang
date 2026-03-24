@@ -7,7 +7,6 @@ import (
 
 // Value 运行时值接口，定义所有可计算值的通用操作
 // 实现此接口的类型包括整数、浮点数、字符串、函数等
-
 type Object interface {
 	// Type 返回值的类型
 	//

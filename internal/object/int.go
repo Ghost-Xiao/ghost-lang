@@ -11,7 +11,6 @@ import (
 
 // Int 整数类型结构体，表示运行时的整数数值
 // 实现Number接口和Object接口，支持各种整数运算
-
 type Int struct {
 	Value int64 // 整数实际值
 }

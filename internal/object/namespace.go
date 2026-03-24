@@ -9,7 +9,6 @@ import (
 
 // Namespace 表示命名空间类型，实现了Object接口
 // 用于表示命名空间
-
 type Namespace struct {
 	Name   string
 	Member *Environment

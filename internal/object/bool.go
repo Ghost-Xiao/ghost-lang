@@ -9,7 +9,6 @@ import (
 
 // Bool 表示布尔值类型，实现了Object接口
 // 支持逻辑运算
-
 type Bool struct {
 	Value bool // 布尔值的实际值
 }

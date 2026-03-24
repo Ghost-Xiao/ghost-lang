@@ -7,7 +7,6 @@ import (
 
 // Null 表示空值类型，实现了Object接口
 // 用于表示不存在的值或空值
-
 type Null struct{}
 
 // Type 返回值的类型

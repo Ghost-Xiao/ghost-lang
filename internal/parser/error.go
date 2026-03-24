@@ -8,7 +8,6 @@ import (
 
 // SyntaxError 语法错误，表示遇到非法语法
 // 实现 error 接口
-
 type SyntaxError struct {
 	Message  string    // 错误描述文本
 	PosStart *util.Pos // 错误起始位置

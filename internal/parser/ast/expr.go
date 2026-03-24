@@ -10,7 +10,6 @@ import (
 
 // PrefixExpression 是前缀表达式节点
 // 表示带前缀运算符的表达式，如!5、-3等
-
 type PrefixExpression struct {
 	Operator *lexer.Token // 前缀运算符token
 	Value    Expression   // 右侧表达式
@@ -42,7 +41,6 @@ func (pe *PrefixExpression) IsLvalue() bool {
 
 // IntExpression 是整数表达式节点
 // 表示源代码中的整数常量
-
 type IntExpression struct {
 	Value    int64     // 整数值
 	PosStart *util.Pos // 表达式的起始位置
@@ -70,7 +68,6 @@ func (ie *IntExpression) IsLvalue() bool {
 
 // FloatExpression 是浮点数表达式节点
 // 表示源代码中的浮点数常量
-
 type FloatExpression struct {
 	Value    float64   // 浮点数值
 	PosStart *util.Pos // 表达式的起始位置
@@ -98,7 +95,6 @@ func (fe *FloatExpression) IsLvalue() bool {
 
 // IdentifierExpression 是标识符表达式节点
 // 表示变量名、函数名等标识符
-
 type IdentifierExpression struct {
 	Name     string    // 标识符名称
 	PosStart *util.Pos // 表达式的起始位置
@@ -126,7 +122,6 @@ func (ie *IdentifierExpression) IsLvalue() bool {
 
 // BoolExpression 是布尔表达式节点
 // 表示布尔值(true/false)
-
 type BoolExpression struct {
 	Value    bool      // 布尔值
 	PosStart *util.Pos // 表达式的起始位置
@@ -157,7 +152,6 @@ func (be *BoolExpression) IsLvalue() bool {
 
 // NullExpression 是空值表达式节点
 // 表示null值
-
 type NullExpression struct {
 	PosStart *util.Pos // 表达式的起始位置
 	PosEnd   *util.Pos // 表达式的结束位置
@@ -184,7 +178,6 @@ func (ne *NullExpression) IsLvalue() bool {
 
 // StringExpression 是字符串表达式节点
 // 表示源代码中的字符串常量
-
 type StringExpression struct {
 	Value    string    // 字符串值
 	PosStart *util.Pos // 表达式的起始位置
@@ -212,7 +205,6 @@ func (se *StringExpression) IsLvalue() bool {
 
 // ListExpression 是列表表达式节点
 // 表示源代码中的列表
-
 type ListExpression struct {
 	Value    []Expression // 列表值
 	PosStart *util.Pos    // 表达式的起始位置
@@ -244,12 +236,16 @@ func (le *ListExpression) Expression() {}
 
 // IsLvalue 方法，返回是否为左值
 func (le *ListExpression) IsLvalue() bool {
-	return false
+	for _, expr := range le.Value {
+		if !expr.IsLvalue() {
+			return false
+		}
+	}
+	return true
 }
 
 // GroupedExpression 是分组表达式节点
 // 表示带括号的表达式，用于改变运算优先级
-
 type GroupedExpression struct {
 	Expr     Expression // 包裹的表达式
 	PosStart *util.Pos  // 表达式的起始位置
@@ -277,7 +273,6 @@ func (ge *GroupedExpression) IsLvalue() bool {
 
 // VarInitializationExpression 是变量初始化表达式节点
 // 表示变量的声明和初始化
-
 type VarInitializationExpression struct {
 	IsConst  bool
 	Name     Expression
@@ -319,7 +314,6 @@ func (vi *VarInitializationExpression) Definition() {}
 
 // VarAssignmentExpression 是变量赋值表达式节点
 // 表示对变量进行赋值操作
-
 type VarAssignmentExpression struct {
 	Name     Expression
 	Value    Expression
@@ -352,7 +346,6 @@ func (va *VarAssignmentExpression) IsLvalue() bool {
 
 // CompoundAssignmentExpression 是复合赋值表达式节点
 // 表示对变量进行复合赋值
-
 type CompoundAssignmentExpression struct {
 	Name     Expression   // 变量名称
 	Operator *lexer.Token // 基础运算符
@@ -389,7 +382,6 @@ func (ce *CompoundAssignmentExpression) IsLvalue() bool {
 
 // InfixExpression 是中缀表达式节点
 // 表示带中缀运算符的表达式，如a + b、x * y等
-
 type InfixExpression struct {
 	Left     Expression   // 左侧表达式
 	Operator *lexer.Token // 中缀运算符
@@ -425,7 +417,6 @@ func (ie *InfixExpression) IsLvalue() bool {
 
 // PrefixUnaryIncDecExpression 是前缀自增 / 自减表达式节点
 // 表示前缀自增 / 自减表达式，如++a、--b等
-
 type PrefixUnaryIncDecExpression struct {
 	Operator *lexer.Token // 运算符
 	Right    Expression   // 右侧表达式
@@ -457,7 +448,6 @@ func (pe *PrefixUnaryIncDecExpression) IsLvalue() bool {
 
 // PostfixUnaryIncDecExpression 是后缀自增 / 自减表达式节点
 // 表示后缀自增 / 自减表达式，如a++、b--等
-
 type PostfixUnaryIncDecExpression struct {
 	Operator *lexer.Token // 运算符
 	Left     Expression   // 左侧表达式
@@ -488,7 +478,6 @@ func (pe *PostfixUnaryIncDecExpression) IsLvalue() bool {
 }
 
 // BlockExpression 是块表达式节点
-
 type BlockExpression struct {
 	Statements []Statement // 语句块
 	PosStart   *util.Pos   // 表达式的起始位置
@@ -525,7 +514,6 @@ func (be *BlockExpression) IsLvalue() bool {
 }
 
 // IfExpression 是if表达式节点
-
 type IfExpression struct {
 	Condition   Expression // 条件表达式
 	Consequence Statement  // 条件为真时执行的分支体
@@ -563,7 +551,6 @@ func (ie *IfExpression) IsLvalue() bool {
 }
 
 // CallExpression 是函数调用表达式节点
-
 type CallExpression struct {
 	Function Expression   // 函数
 	Argument []Expression // 参数
@@ -603,7 +590,6 @@ func (ce *CallExpression) IsLvalue() bool {
 }
 
 // IndexExpression 是索引表达式节点
-
 type IndexExpression struct {
 	Target   Expression // 被索引的目标
 	Index    Expression // 索引表达式
@@ -637,7 +623,6 @@ func (ie *IndexExpression) IsLvalue() bool {
 
 // NamespaceAccessExpression 是命名空间访问表达式节点
 // 表示对命名空间成员的访问，如a::b、c::d等
-
 type NamespaceAccessExpression struct {
 	Target   Expression // 被访问的目标
 	Member   Expression // 成员名
@@ -666,4 +651,68 @@ func (ne *NamespaceAccessExpression) Expression() {}
 // IsLvalue 方法，返回是否为左值
 func (ne *NamespaceAccessExpression) IsLvalue() bool {
 	return true
+}
+
+// ContainsExpression 是contains表达式节点
+// 表示对contains操作的表达式，如a contains b等
+type ContainsExpression struct {
+	Target   Expression // 目标表达式
+	Query    Expression // 查询表达式
+	PosStart *util.Pos  // 表达式的起始位置
+	PosEnd   *util.Pos  // 表达式的结束位置
+}
+
+// String 返回contains表达式的字符串表示
+// 格式为：<target> contains <query>
+//
+// 返回值:
+//
+//	contains表达式的字符串表示
+func (ie *ContainsExpression) String() string {
+	var sb strings.Builder
+	sb.WriteString(ie.Target.String())
+	sb.WriteString(" contains ")
+	sb.WriteString(ie.Query.String())
+	return sb.String()
+}
+
+// Expression 是标记方法，用于类型判断
+// 实现Expression接口
+func (ie *ContainsExpression) Expression() {}
+
+// IsLvalue 方法，返回是否为左值
+func (ie *ContainsExpression) IsLvalue() bool {
+	return false
+}
+
+// RangeExpression 是范围表达式节点
+// 表示范围表达式，如a..b等
+type RangeExpression struct {
+	Start    Expression // 起始值
+	End      Expression // 结束值
+	PosStart *util.Pos  // 表达式的起始位置
+	PosEnd   *util.Pos  // 表达式的结束位置
+}
+
+// String 返回范围表达式的字符串表示
+// 格式为：<start>..<end>
+//
+// 返回值:
+//
+//	范围表达式的字符串表示
+func (re *RangeExpression) String() string {
+	var sb strings.Builder
+	sb.WriteString(re.Start.String())
+	sb.WriteString("..")
+	sb.WriteString(re.End.String())
+	return sb.String()
+}
+
+// Expression 是标记方法，用于类型判断
+// 实现Expression接口
+func (re *RangeExpression) Expression() {}
+
+// IsLvalue 方法，返回是否为左值
+func (re *RangeExpression) IsLvalue() bool {
+	return false
 }

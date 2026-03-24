@@ -487,6 +487,100 @@ func TestParser_ParseNamespaceStatement(t *testing.T) {
 	}
 }
 
+func TestParser_ParseForEachStatement(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected *ast.ForEachStatement
+	}{
+		{
+			name:  "For Each Statement With Step",
+			input: "foreach a in l step 1 {};",
+			expected: &ast.ForEachStatement{
+				Index: nil,
+				Value: &ast.IdentifierExpression{
+					Name:     "a",
+					PosStart: util.NewPos(1, 9, 8, "<test>", "foreach a in l step 1 {};"),
+					PosEnd:   util.NewPos(1, 10, 9, "<test>", "foreach a in l step 1 {};"),
+				},
+				IsNewVar: false,
+				Target: &ast.IdentifierExpression{
+					Name:     "l",
+					PosStart: util.NewPos(1, 14, 13, "<test>", "foreach a in l step 1 {};"),
+					PosEnd:   util.NewPos(1, 15, 14, "<test>", "foreach a in l step 1 {};"),
+				},
+				Step: &ast.IntExpression{
+					Value:    1,
+					PosStart: util.NewPos(1, 21, 20, "<test>", "foreach a in l step 1 {};"),
+					PosEnd:   util.NewPos(1, 22, 21, "<test>", "foreach a in l step 1 {};"),
+				},
+				Body: &ast.ExpressionStatement{
+					Expr: &ast.BlockExpression{
+						Statements: []ast.Statement{},
+						PosStart:   util.NewPos(1, 23, 22, "<test>", "foreach a in l step 1 {};"),
+						PosEnd:     util.NewPos(1, 25, 24, "<test>", "foreach a in l step 1 {};"),
+					},
+					PosStart: util.NewPos(1, 23, 22, "<test>", "foreach a in l step 1 {};"),
+					PosEnd:   util.NewPos(1, 25, 24, "<test>", "foreach a in l step 1 {};"),
+				},
+				PosStart: util.NewPos(1, 1, 0, "<test>", "foreach a in l step 1 {};"),
+				PosEnd:   util.NewPos(1, 25, 24, "<test>", "foreach a in l step 1 {};"),
+			},
+		},
+		{
+			name:  "For Each Statement With New Var",
+			input: "foreach var [a, b] in l {};",
+			expected: &ast.ForEachStatement{
+				Index: &ast.IdentifierExpression{
+					Name:     "a",
+					PosStart: util.NewPos(1, 14, 13, "<test>", "foreach var [a, b] in l {};"),
+					PosEnd:   util.NewPos(1, 15, 14, "<test>", "foreach var [a, b] in l {};"),
+				},
+				Value: &ast.IdentifierExpression{
+					Name:     "b",
+					PosStart: util.NewPos(1, 17, 16, "<test>", "foreach var [a, b] in l {};"),
+					PosEnd:   util.NewPos(1, 18, 17, "<test>", "foreach var [a, b] in l {};"),
+				},
+				IsNewVar: true,
+				Target: &ast.IdentifierExpression{
+					Name:     "l",
+					PosStart: util.NewPos(1, 23, 22, "<test>", "foreach var [a, b] in l {};"),
+					PosEnd:   util.NewPos(1, 24, 23, "<test>", "foreach var [a, b] in l {};"),
+				},
+				Step: nil,
+				Body: &ast.ExpressionStatement{
+					Expr: &ast.BlockExpression{
+						Statements: []ast.Statement{},
+						PosStart:   util.NewPos(1, 25, 24, "<test>", "foreach var [a, b] in l {};"),
+						PosEnd:     util.NewPos(1, 27, 26, "<test>", "foreach var [a, b] in l {};"),
+					},
+					PosStart: util.NewPos(1, 25, 24, "<test>", "foreach var [a, b] in l {};"),
+					PosEnd:   util.NewPos(1, 27, 26, "<test>", "foreach var [a, b] in l {};"),
+				},
+				PosStart: util.NewPos(1, 1, 0, "<test>", "foreach var [a, b] in l {};"),
+				PosEnd:   util.NewPos(1, 27, 26, "<test>", "foreach var [a, b] in l {};"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.NewLexer("<test>", tt.input)
+			p, _ := NewParser(l)
+			program := p.ParseProgram()
+			expr := program.Statements[0].(*ast.ForEachStatement)
+
+			if p.Err != nil {
+				t.Errorf("err = %+v, expected nil", p.Err)
+			}
+
+			if !reflect.DeepEqual(expr, tt.expected) {
+				t.Errorf("expected %+v, got %+v", tt.expected, expr)
+			}
+		})
+	}
+}
+
 func TestParser_ParsePrefixExpression(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1436,6 +1530,47 @@ func TestParser_ParseVarInitializationExpression(t *testing.T) {
 				PosEnd:   util.NewPos(1, 12, 11, "<test>", "const a = 1;"),
 			},
 		},
+		{
+			name:  "Destructuring Assignment",
+			input: "var [a, b] = [1, 2];",
+			expected: &ast.VarInitializationExpression{
+				IsConst: false,
+				Name: &ast.ListExpression{
+					Value: []ast.Expression{
+						&ast.IdentifierExpression{
+							Name:     "a",
+							PosStart: util.NewPos(1, 6, 5, "<test>", "var [a, b] = [1, 2];"),
+							PosEnd:   util.NewPos(1, 7, 6, "<test>", "var [a, b] = [1, 2];"),
+						},
+						&ast.IdentifierExpression{
+							Name:     "b",
+							PosStart: util.NewPos(1, 9, 8, "<test>", "var [a, b] = [1, 2];"),
+							PosEnd:   util.NewPos(1, 10, 9, "<test>", "var [a, b] = [1, 2];"),
+						},
+					},
+					PosStart: util.NewPos(1, 5, 4, "<test>", "var [a, b] = [1, 2];"),
+					PosEnd:   util.NewPos(1, 11, 10, "<test>", "var [a, b] = [1, 2];"),
+				},
+				Value: &ast.ListExpression{
+					Value: []ast.Expression{
+						&ast.IntExpression{
+							Value:    1,
+							PosStart: util.NewPos(1, 15, 14, "<test>", "var [a, b] = [1, 2];"),
+							PosEnd:   util.NewPos(1, 16, 15, "<test>", "var [a, b] = [1, 2];"),
+						},
+						&ast.IntExpression{
+							Value:    2,
+							PosStart: util.NewPos(1, 18, 17, "<test>", "var [a, b] = [1, 2];"),
+							PosEnd:   util.NewPos(1, 19, 18, "<test>", "var [a, b] = [1, 2];"),
+						},
+					},
+					PosStart: util.NewPos(1, 14, 13, "<test>", "var [a, b] = [1, 2];"),
+					PosEnd:   util.NewPos(1, 20, 19, "<test>", "var [a, b] = [1, 2];"),
+				},
+				PosStart: util.NewPos(1, 1, 0, "<test>", "var [a, b] = [1, 2];"),
+				PosEnd:   util.NewPos(1, 20, 19, "<test>", "var [a, b] = [1, 2];"),
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -2101,6 +2236,94 @@ func TestParser_ParseNamespaceAccessExpression(t *testing.T) {
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
 			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.NamespaceAccessExpression)
+
+			if p.Err != nil {
+				t.Errorf("err = %+v, expected nil", p.Err)
+			}
+
+			if !reflect.DeepEqual(expr, tt.expected) {
+				t.Errorf("expected %+v, got %+v", tt.expected, expr)
+			}
+		})
+	}
+}
+
+func TestParser_ParseRangeExpression(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected *ast.RangeExpression
+	}{
+		{
+			name:  "1 To 5",
+			input: "1..5;",
+			expected: &ast.RangeExpression{
+				Start: &ast.IntExpression{
+					Value:    1,
+					PosStart: util.NewPos(1, 1, 0, "<test>", "1..5;"),
+					PosEnd:   util.NewPos(1, 2, 1, "<test>", "1..5;"),
+				},
+				End: &ast.IntExpression{
+					Value:    5,
+					PosStart: util.NewPos(1, 4, 3, "<test>", "1..5;"),
+					PosEnd:   util.NewPos(1, 5, 4, "<test>", "1..5;"),
+				},
+				PosStart: util.NewPos(1, 1, 0, "<test>", "1..5;"),
+				PosEnd:   util.NewPos(1, 5, 4, "<test>", "1..5;"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.NewLexer("<test>", tt.input)
+			p, _ := NewParser(l)
+			program := p.ParseProgram()
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.RangeExpression)
+
+			if p.Err != nil {
+				t.Errorf("err = %+v, expected nil", p.Err)
+			}
+
+			if !reflect.DeepEqual(expr, tt.expected) {
+				t.Errorf("expected %+v, got %+v", tt.expected, expr)
+			}
+		})
+	}
+}
+
+func TestParser_ParseContainsExpression(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected *ast.ContainsExpression
+	}{
+		{
+			name:  "Contains Expression",
+			input: "a contains b;",
+			expected: &ast.ContainsExpression{
+				Target: &ast.IdentifierExpression{
+					Name:     "a",
+					PosStart: util.NewPos(1, 1, 0, "<test>", "a contains b;"),
+					PosEnd:   util.NewPos(1, 2, 1, "<test>", "a contains b;"),
+				},
+				Query: &ast.IdentifierExpression{
+					Name:     "b",
+					PosStart: util.NewPos(1, 12, 11, "<test>", "a contains b;"),
+					PosEnd:   util.NewPos(1, 13, 12, "<test>", "a contains b;"),
+				},
+				PosStart: util.NewPos(1, 1, 0, "<test>", "a contains b;"),
+				PosEnd:   util.NewPos(1, 13, 12, "<test>", "a contains b;"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.NewLexer("<test>", tt.input)
+			p, _ := NewParser(l)
+			program := p.ParseProgram()
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.ContainsExpression)
 
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)

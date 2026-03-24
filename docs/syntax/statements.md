@@ -91,3 +91,44 @@ namespace Utils {
 **注意事项：**
 - 命名空间中的成员通过 `命名空间名::成员名` 的方式访问
 - 命名空间中的变量和函数在命名空间声明后即可访问
+
+## Foreach 循环语句(ForeachStatement)
+用于遍历可索引对象（如列表）的循环语句。
+
+**语法定义：**
+```
+ForeachStatement ::= "foreach" ("var")? (("[" Identifier "," Identifier "]") | Identifier) "in" Expression ("step" Expression)? Statement
+```
+
+**示例：**
+```ghost
+foreach var val in [1, 2, 3, 4, 5] {
+    println(val);
+};
+
+foreach var [i, val] in [1, 2, 3] {
+    println(i, val);
+};
+
+var item = 0;
+foreach item in [1, 2, 3] {
+    println(item);
+};
+
+var index = 0;
+var value = 0;
+foreach [index, value] in [1, 2, 3] {
+    println(index, value);
+};
+
+foreach var i in 1..10 step 2 {
+    println(i);
+};
+```
+
+**注意事项：**
+- 使用 `var` 关键字时，会在循环内声明新变量
+- 不使用 `var` 时，变量必须已在外部作用域中定义
+- 可同时获取索引和值，使用方括号和逗号分隔
+- 可选 `step` 关键字用于指定遍历步长
+- `break` 和 `continue` 语句可用于控制循环流程

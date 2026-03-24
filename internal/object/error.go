@@ -10,7 +10,6 @@ import (
 // OperationError 操作错误类型，表示执行不支持的操作时发生的错误
 // 例如对不兼容类型执行运算、调用未定义的方法等
 // 拥有完整的错误跟踪和格式化能力
-
 type OperationError struct {
 	Frame    *frame.Frame // 错误发生时的调用栈
 	Message  string       // 错误描述文本
@@ -56,7 +55,6 @@ func (e *OperationError) Error() string {
 // MathError 数学错误类型，表示数学运算相关的错误
 // 例如除以零、数值溢出、无效的数学函数参数等
 // 拥有完整的错误跟踪和格式化能力
-
 type MathError struct {
 	Frame    *frame.Frame // 错误发生时的调用栈
 	Message  string       // 错误描述文本
@@ -102,7 +100,6 @@ func (e *MathError) Error() string {
 // TypeError 类型错误类型，表示类型相关的运行时错误
 // 例如访问类型不匹配等
 // 拥有完整的错误跟踪和格式化能力
-
 type TypeError struct {
 	Frame    *frame.Frame // 错误发生时的调用栈
 	Message  string       // 错误描述文本
@@ -147,7 +144,6 @@ func (e *TypeError) Error() string {
 
 // IndexError 索引错误类型，表示索引越界等相关的运行时错误
 // 拥有完整的错误跟踪和格式化能力
-
 type IndexError struct {
 	Frame    *frame.Frame // 错误发生时的调用栈
 	Message  string       // 错误描述文本

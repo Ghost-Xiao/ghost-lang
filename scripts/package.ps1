@@ -8,7 +8,7 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::OutputEncoding = $OutputEncoding
 [Console]::InputEncoding = $OutputEncoding
 
-$Version = "v0.2.0"
+$Version = "v0.3.0"
 
 # 确保 bin 目录存在
 if (-not (Test-Path "bin")) {

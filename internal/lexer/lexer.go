@@ -280,8 +280,13 @@ func (l *Lexer) scanNumber() (string, error) {
 		var dotCount int // 小数点计数器，用于检查是否有多个小数点
 		// 扫描数字字符和小数点
 		for isNumber(l.CurrPos.Char) || l.CurrPos.Char == '.' {
-			// 如果是小数点，增加小数点计数器
+			// 如果是小数点
 			if l.CurrPos.Char == '.' {
+				// 如果下一个也是小数点
+				if l.NextPos.Char == '.' {
+					break
+				}
+				// 增加小数点计数器
 				dotCount++
 				// 检查是否有多个小数点，浮点数只能有一个小数点
 				if dotCount > 1 {

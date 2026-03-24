@@ -18,7 +18,9 @@ const (
 	LOGIC            // 逻辑运算符优先级(&&, ||)
 	BIT              // 位运算符优先级(^, &, |, <<, >>)
 	EQUALS           // 相等性运算符优先级(==, !=)
+	CONTAINS         // 包含运算符优先级(contains)
 	COMPARE          // 比较运算符优先级(<, <=, >, >=)
+	RANGE            // 范围运算符优先级(..)
 	SUM              // 加减运算符优先级(+, -)
 	MUL              // 乘除运算符优先级(*, /, %)
 	PREFIX           // 前缀运算符优先级(!, -, ~, +)
@@ -49,10 +51,12 @@ var precedences = map[string]int{
 	lexer.RIGHT_SHIFT:       BIT,
 	lexer.EQUALS:            EQUALS,
 	lexer.NOT_EQUALS:        EQUALS,
+	lexer.CONTAINS:          CONTAINS,
 	lexer.LT:                COMPARE,
 	lexer.LTE:               COMPARE,
 	lexer.GT:                COMPARE,
 	lexer.GTE:               COMPARE,
+	lexer.RANGE:             RANGE,
 	lexer.PLUS:              SUM,
 	lexer.MINUS:             SUM,
 	lexer.ASTERISK:          MUL,
@@ -66,7 +70,6 @@ var precedences = map[string]int{
 }
 
 // Parser 语法解析器结构体，负责将词法分析器产生的token流解析为AST
-
 type Parser struct {
 	L              *lexer.Lexer                                              // 词法分析器实例
 	CurrToken      *lexer.Token                                              // 当前正在处理的token
@@ -157,6 +160,8 @@ func NewParser(l *lexer.Lexer) (*Parser, error) {
 		lexer.LPAREN:            p.parseCallExpression,
 		lexer.LBRACKET:          p.parseIndexExpression,
 		lexer.DOUBLE_COLON:      p.parseNamespaceAccessExpression,
+		lexer.RANGE:             p.parseRangeExpression,
+		lexer.CONTAINS:          p.parseContainsExpression,
 	}
 	return p, nil
 }
@@ -259,6 +264,9 @@ func (p *Parser) parseStatement(posStart *util.Pos) ast.Statement {
 	case lexer.NAMESPACE:
 		// 解析为命名空间语句
 		return p.parseNamespaceStatement(posStart)
+	case lexer.FOREACH:
+		// 解析为foreach语句
+		return p.parseForEachStatement(posStart)
 	default:
 		// 解析为表达式语句
 		return p.parseExpressionStatement(posStart)
@@ -561,6 +569,113 @@ func (p *Parser) parseNamespaceStatement(posStart *util.Pos) *ast.NamespaceState
 	return ns
 }
 
+// parseForEachStatement 解析foreach语句
+//
+// 参数:
+//
+//	posStart - 语句的起始位置
+//
+// 返回值:
+//
+//	foreach语句节点ForEachStatement
+func (p *Parser) parseForEachStatement(posStart *util.Pos) *ast.ForEachStatement {
+	fe := &ast.ForEachStatement{
+		PosStart: posStart,
+	}
+	p.Advance()
+	// 判断是否是var
+	fe.IsNewVar = p.CurrToken.Type == lexer.VAR
+	if fe.IsNewVar {
+		p.Advance()
+	}
+	// 判断是否是索引-值遍历
+	if p.CurrToken.Type == lexer.LBRACKET {
+		p.Advance()
+		// 解析索引变量
+		if fe.IsNewVar {
+			// 只能是标识符
+			fe.Index = p.parseIdentifierExpression(p.CurrToken.PosStart.Copy())
+			if p.Err != nil {
+				return nil
+			}
+		} else {
+			fe.Index = p.ParseExpression(LOWEST)
+			if p.Err != nil {
+				return nil
+			}
+		}
+		// 检查是否是逗号
+		p.CheckNextAndAdvance(lexer.COMMA)
+		if p.Err != nil {
+			return nil
+		}
+		p.Advance()
+		// 解析值变量
+		if fe.IsNewVar {
+			// 只能是标识符
+			fe.Value = p.parseIdentifierExpression(p.CurrToken.PosStart.Copy())
+			if p.Err != nil {
+				return nil
+			}
+		} else {
+			fe.Value = p.ParseExpression(LOWEST)
+			if p.Err != nil {
+				return nil
+			}
+		}
+		// 检查是否是括号
+		p.CheckNextAndAdvance(lexer.RBRACKET)
+		if p.Err != nil {
+			return nil
+		}
+	} else {
+		fe.Index = nil
+		// 解析值变量
+		if fe.IsNewVar {
+			// 只能是标识符
+			fe.Value = p.parseIdentifierExpression(p.CurrToken.PosStart.Copy())
+			if p.Err != nil {
+				return nil
+			}
+		} else {
+			fe.Value = p.ParseExpression(LOWEST)
+			if p.Err != nil {
+				return nil
+			}
+		}
+	}
+	// 判断是否是in
+	p.CheckNextAndAdvance(lexer.IN)
+	if p.Err != nil {
+		return nil
+	}
+	p.Advance()
+	// 解析遍历目标
+	fe.Target = p.ParseExpression(LOWEST)
+	if p.Err != nil {
+		return nil
+	}
+	p.Advance()
+	// 判断是否有step
+	if p.CurrToken.Type == lexer.STEP {
+		p.Advance()
+		fe.Step = p.ParseExpression(LOWEST)
+		if p.Err != nil {
+			return nil
+		}
+		p.Advance()
+	} else {
+		fe.Step = nil
+	}
+	// 解析foreach体
+	fe.Body = p.parseStatement(p.CurrToken.PosStart.Copy())
+	if p.Err != nil {
+		return nil
+	}
+	fe.PosEnd = p.CurrToken.PosEnd.Copy()
+	return fe
+}
+
 // parseExpressionStatement 解析表达式语句(由单个表达式组成的语句)
 //
 // 参数:
@@ -777,13 +892,28 @@ func (p *Parser) parseGroupedExpression(posStart *util.Pos) ast.Expression {
 func (p *Parser) parseVarInitializationExpression(posStart *util.Pos) ast.Expression {
 	// 区分const和var声明
 	isConst := p.CurrToken.Type == lexer.CONST
-	// 检查并消耗标识符
-	p.CheckNextAndAdvance(lexer.IDENT)
-	if p.Err != nil {
-		return nil
+	var name ast.Expression
+	if p.NextToken.Type == lexer.LBRACKET {
+		p.Advance()
+		// 解析解构赋值列表
+		name = p.parseListExpression(p.CurrToken.PosStart.Copy())
+		if !name.IsLvalue() {
+			p.Err = &SyntaxError{
+				Message:  "destructuring assignment requires lvalues.",
+				PosStart: posStart,
+				PosEnd:   p.CurrToken.PosEnd.Copy(),
+			}
+			return nil
+		}
+	} else {
+		// 检查并消耗标识符
+		p.CheckNextAndAdvance(lexer.IDENT)
+		if p.Err != nil {
+			return nil
+		}
+		// 解析变量名
+		name = p.parseIdentifierExpression(p.CurrToken.PosStart.Copy())
 	}
-	// 解析变量名
-	name := p.parseIdentifierExpression(p.CurrToken.PosStart.Copy())
 	// 检查并消耗赋值运算符
 	p.CheckNextAndAdvance(lexer.EQUAL)
 	if p.Err != nil {
@@ -962,6 +1092,10 @@ func (p *Parser) parseBlockExpression(posStart *util.Pos) ast.Expression {
 		PosStart: posStart,
 	}
 	p.Advance()
+	// 检查是否为空块
+	if p.CurrToken.Type == lexer.RBRACE {
+		expr.Statements = []ast.Statement{}
+	}
 	// 循环解析所有语句直到遇到右大括号
 	for p.CurrToken.Type != lexer.RBRACE {
 		if p.Err != nil {
@@ -1180,4 +1314,55 @@ func (p *Parser) parseNamespaceAccessExpression(left ast.Expression, posStart *u
 	ne.Member = member
 	ne.PosEnd = p.CurrToken.PosEnd.Copy()
 	return ne
+}
+
+// parseRangeExpression 解析范围表达式
+//
+// 参数:
+//
+//	left - 左侧目标表达式
+//	posStart - 表达式的起始位置
+//
+// 返回值:
+//
+//	范围表达式节点 RangeExpression
+func (p *Parser) parseRangeExpression(left ast.Expression, posStart *util.Pos) ast.Expression {
+	re := &ast.RangeExpression{
+		Start:    left,
+		PosStart: posStart,
+	}
+	p.Advance()
+	// 解析结束值
+	re.End = p.ParseExpression(RANGE)
+	if p.Err != nil {
+		return nil
+	}
+	// 设置范围表达式的结束位置
+	re.PosEnd = p.CurrToken.PosEnd.Copy()
+	return re
+}
+
+// parseContainsExpression 解析包含表达式
+//
+// 参数:
+//
+//	left - 左侧目标表达式
+//	posStart - 表达式的起始位置
+//
+// 返回值:
+//
+//	包含表达式节点 ContainsExpression
+func (p *Parser) parseContainsExpression(left ast.Expression, posStart *util.Pos) ast.Expression {
+	ie := &ast.ContainsExpression{
+		Target:   left,
+		PosStart: posStart,
+	}
+	p.Advance()
+	// 解析查询表达式
+	ie.Query = p.ParseExpression(CONTAINS)
+	if p.Err != nil {
+		return nil
+	}
+	ie.PosEnd = p.CurrToken.PosEnd.Copy()
+	return ie
 }

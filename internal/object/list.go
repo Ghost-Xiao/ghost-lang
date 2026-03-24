@@ -9,7 +9,6 @@ import (
 
 // List 列表类型结构体，表示运行时的列表
 // 实现Object接口
-
 type List struct {
 	Elements []Object // 列表元素
 }
@@ -20,7 +19,7 @@ type List struct {
 //
 //	string - 值的类型
 func (l *List) Type() string {
-	return "LIST"
+	return "List"
 }
 
 // String 返回值的字符串表示
@@ -613,4 +612,13 @@ func (l *List) Set(index Object, value Object, posStart, posEnd *util.Pos, frame
 	}
 	l.Elements[int(real)] = value
 	return nil
+}
+
+// Length 返回列表的长度
+//
+// 返回值:
+//
+//	int64 - 列表的长度
+func (l *List) Length() int64 {
+	return int64(len(l.Elements))
 }

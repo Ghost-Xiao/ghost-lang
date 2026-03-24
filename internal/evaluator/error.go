@@ -10,7 +10,6 @@ import (
 // VariableError 变量错误类型，表示变量相关的运行时错误
 // 例如访问未定义变量、重复声明常量、类型不匹配等
 // 拥有完整的错误跟踪和格式化能力
-
 type VariableError struct {
 	Frame    *frame.Frame // 错误发生时的调用栈
 	Message  string       // 错误描述文本
@@ -56,7 +55,6 @@ func (e *VariableError) Error() string {
 // TypeError 类型错误类型，表示类型相关的运行时错误
 // 例如访问类型不匹配等
 // 拥有完整的错误跟踪和格式化能力
-
 type TypeError struct {
 	Frame    *frame.Frame // 错误发生时的调用栈
 	Message  string       // 错误描述文本
@@ -102,7 +100,6 @@ func (e *TypeError) Error() string {
 // SyntaxError 语法错误类型，表示语法相关的运行时错误
 // 例如缺少括号等
 // 拥有完整的错误跟踪和格式化能力
-
 type SyntaxError struct {
 	Frame    *frame.Frame // 错误发生时的调用栈
 	Message  string       // 错误描述文本
@@ -148,7 +145,6 @@ func (e *SyntaxError) Error() string {
 // ArgumentError 参数错误类型，表示参数相关的运行时错误
 // 例如参数数量不匹配等
 // 拥有完整的错误跟踪和格式化能力
-
 type ArgumentError struct {
 	Frame    *frame.Frame // 错误发生时的调用栈
 	Message  string       // 错误描述文本

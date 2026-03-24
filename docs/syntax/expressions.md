@@ -3,17 +3,28 @@
 Ghost Language 支持多种表达式类型，以下是详细的表达式语法定义和示例。
 
 ## 整数字面量(IntegerLiteral)
-表示整数值的表达式节点。
+表示整数值的表达式节点，支持十进制、二进制、八进制和十六进制。
 
 **语法定义：**
 ```
-IntegerLiteral ::= [0-9]+
+IntegerLiteral ::= DecimalLiteral | BinaryLiteral | OctalLiteral | HexLiteral
+DecimalLiteral ::= [0-9]+
+BinaryLiteral ::= ("0b" | "0B") [01]+
+OctalLiteral ::= ("0o" | "0O" | "0") [0-7]+
+HexLiteral ::= ("0x" | "0X") [0-9a-fA-F]+
 ```
 
 **示例：**
 ```ghost
 42;
 -10;
+0b1010;
+0B1101;
+0o52;
+0O67;
+040;
+0x2a;
+0X1F;
 ```
 
 ## 浮点数字面量(FloatLiteral)
@@ -21,13 +32,17 @@ IntegerLiteral ::= [0-9]+
 
 **语法定义：**
 ```
-FloatLiteral ::= [0-9]+ "[" . "]" [0-9]+
+FloatLiteral ::= [0-9]+ "." [0-9]* (("e" | "E") ("+" | "-")? [0-9]+)?
+               | [0-9]+ (("e" | "E") ("+" | "-")? [0-9]+)
 ```
 
 **示例：**
 ```ghost
 3.14;
 -2.718;
+1.2e3;
+1.2E-4;
+5e2;
 ```
 
 ## 布尔字面量(BooleanLiteral)
@@ -158,29 +173,46 @@ GroupExpression ::= "(" Expression ")"
 
 **语法定义：**
 ```
-VarInitializationExpression ::= ("var" | "const") Identifier "=" Expression
+VarInitializationExpression ::= ("var" | "const") LvalueList "=" Expression
+LvalueList ::= Identifier | ListExpression
 ```
 
 **示例：**
 ```ghost
 var x = 20;
 const PI = 3.14159;
+var [a, b] = [1, 2];
+const [x, y, z] = [10, 20, 30];
 ```
+
+**注意事项：**
+- 当使用列表表达式作为左值时，进行解构赋值
+- 解构赋值要求右侧必须是列表表达式
+- 左右两侧的元素数量必须一致
 
 ## 变量赋值表达式(VarAssignmentExpression)
 用于给已声明的变量重新赋值的表达式。
 
 **语法定义：**
 ```
-VarAssignmentExpression ::= Lvalue "=" Expression
-Lvalue ::= Identifier | IndexExpression
+VarAssignmentExpression ::= LvalueList "=" Expression
+LvalueList ::= Identifier | IndexExpression | NamespaceAccessExpression | ListExpression
 ```
 
 **示例：**
 ```ghost
 x = 30;
 a[0] = 40;
+[a, b] = [1, 2];
+[x, y, z] = [10, 20, 30];
+[l[0], b, A::a] = [4, 5, 6];
 ```
+
+**注意事项：**
+- 当使用列表表达式作为左值时，进行解构赋值
+- 解构赋值要求右侧必须是列表表达式
+- 左右两侧的元素数量必须一致
+- 支持索引表达式和命名空间访问表达式作为左值
 
 ## 复合赋值表达式(CompoundAssignmentExpression)
 用于复合赋值操作的表达式。
@@ -320,3 +352,43 @@ Utils::add;
 **注意事项：**
 - 命名空间访问表达式用于访问命名空间中定义的变量或函数
 - 命名空间访问表达式可以作为左值使用，用于修改命名空间中的变量
+
+## 范围表达式(RangeExpression)
+用于创建整数范围的表达式节点。
+
+**语法定义：**
+```
+RangeExpression ::= Expression ".." Expression
+```
+
+**示例：**
+```ghost
+1..5;
+(1+2)..(10-3);
+```
+
+**注意事项：**
+- 范围运算符是闭区间，包含起始值和结束值
+- 起始值和结束值必须是整数类型
+- 如果起始值大于结束值，返回空列表
+
+## 包含检查表达式(ContainsExpression)
+用于检查元素是否存在于容器中的表达式节点。
+
+**语法定义：**
+```
+ContainsExpression ::= Expression "contains" Expression
+```
+
+**示例：**
+```ghost
+[1, 2, 3] contains 2;
+[1, 2, 3] contains 4;
+"hello" contains "ell";
+```
+
+**注意事项：**
+- 左操作数必须是列表或字符串类型
+- 对于列表，检查元素是否存在于列表中
+- 对于字符串，检查子字符串是否存在
+- 不支持检查子列表是否存在

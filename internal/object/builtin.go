@@ -13,7 +13,6 @@ import (
 
 // BuiltinFunction 表示内建函数类型，实现了Object接口
 // 支持的操作包括调用函数等
-
 type BuiltinFunction struct {
 	Name         string                                                                           // 函数名
 	Parameter    []string                                                                         // 参数名

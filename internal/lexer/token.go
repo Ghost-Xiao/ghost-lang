@@ -8,7 +8,6 @@ import "github.com/Ghost-Xiao/ghost-lang/internal/util"
 
 // Token 表示词法分析器生成的令牌结构
 // 包含令牌类型、字面量值和位置信息，用于语法分析和错误报告
-
 type Token struct {
 	Type     string    // 令牌类型，如INT、PLUS、IDENT等
 	Literal  string    // 令牌的字面量值，如数字内容、标识符名称
@@ -57,6 +56,10 @@ const (
 	BREAK     = "BREAK"     // break关键字，跳出循环
 	CONTINUE  = "CONTINUE"  // continue关键字，继续循环
 	NAMESPACE = "NAMESPACE" // namespace关键字，命名空间
+	FOREACH   = "FOREACH"   // foreach关键字，用于列表和映射的遍历
+	IN        = "IN"        // in关键字，用于范围循环
+	STEP      = "STEP"      // step关键字，步长
+	CONTAINS  = "CONTAINS"  // contains关键字，用于检查是否存在包含关系
 
 	// 运算符令牌
 	PLUS         = "PLUS"         // 加号运算符(+)
@@ -95,6 +98,7 @@ const (
 	ELLIPSIS     = "ELLIPSIS"     // 省略号运算符(...)
 	COLON        = "COLON"        // 冒号运算符(:)
 	DOUBLE_COLON = "DOUBLE_COLON" // 双冒号运算符(::)
+	RANGE        = "RANGE"        // range关键字，范围循环
 
 	// 复合赋值运算符令牌
 	PLUS_EQUAL        = "PLUS_EQUAL"        // 加法赋值运算符(+=)
@@ -125,6 +129,10 @@ var Keywords = map[string]string{
 	"break":     BREAK,     // 跳出循环关键字
 	"continue":  CONTINUE,  // 继续循环关键字
 	"namespace": NAMESPACE, // 命名空间关键字
+	"foreach":   FOREACH,   // foreach关键字
+	"in":        IN,        // in关键字
+	"step":      STEP,      // 步长关键字
+	"contains":  CONTAINS,  // contains关键字
 }
 
 // Operators 操作符映射表，将字符串操作符映射到对应的令牌类型
@@ -176,6 +184,7 @@ var Operators = map[string]string{
 	">>=": RIGHT_SHIFT_EQUAL, // 右移赋值运算符
 	":":   COLON,             // 冒号运算符
 	"::":  DOUBLE_COLON,      // 双冒号运算符
+	"..":  RANGE,             // 范围运算符
 }
 
 // LookupIdent 检查标识符是否为关键字，并返回对应的令牌类型

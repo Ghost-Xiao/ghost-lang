@@ -6,7 +6,6 @@ import (
 )
 
 // BreakValue 表示break语句的返回值
-
 type BreakValue struct{}
 
 // Type 返回值的类型

@@ -6,7 +6,6 @@ import (
 )
 
 // ReturnValue 返回值
-
 type ReturnValue struct {
 	Value Object // 返回的值
 }
