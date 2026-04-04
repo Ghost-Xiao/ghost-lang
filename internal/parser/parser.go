@@ -1,11 +1,10 @@
-// 实现GoGhost语言的语法分析器，负责将词法分析产生的token流转换为抽象语法树(AST)
-
 package parser
 
 import (
 	"fmt"
 	"strconv"
 
+	"github.com/Ghost-Xiao/ghost-lang/internal/errors"
 	"github.com/Ghost-Xiao/ghost-lang/internal/lexer"
 	"github.com/Ghost-Xiao/ghost-lang/internal/parser/ast"
 	"github.com/Ghost-Xiao/ghost-lang/internal/util"
@@ -13,20 +12,20 @@ import (
 
 // 运算符优先级常量定义，数值越大优先级越高
 const (
-	LOWEST    = iota // 最低优先级
-	ASSIGN           // 赋值运算符优先级(=, +=, -=, *=, /= 等)
-	LOGIC            // 逻辑运算符优先级(&&, ||)
-	BIT              // 位运算符优先级(^, &, |, <<, >>)
-	EQUALS           // 相等性运算符优先级(==, !=)
-	CONTAINS         // 包含运算符优先级(contains)
-	COMPARE          // 比较运算符优先级(<, <=, >, >=)
-	RANGE            // 范围运算符优先级(..)
-	SUM              // 加减运算符优先级(+, -)
-	MUL              // 乘除运算符优先级(*, /, %)
-	PREFIX           // 前缀运算符优先级(!, -, ~, +)
-	POSTFIX          // 后缀运算符优先级(++, --)
-	CALL             // 函数调用优先级(fn())
-	NAMESPACE        // 命名空间访问符优先级(::)
+	LOWEST   = iota // 最低优先级
+	ASSIGN          // 赋值运算符优先级(=, +=, -=, *=, /= 等)
+	LOGIC           // 逻辑运算符优先级(&&, ||)
+	BIT             // 位运算符优先级(^, &, |, <<, >>)
+	EQUALS          // 相等性运算符优先级(==, !=)
+	CONTAINS        // 包含运算符优先级(contains)
+	COMPARE         // 比较运算符优先级(<, <=, >, >=)
+	RANGE           // 范围运算符优先级(..)
+	SUM             // 加减运算符优先级(+, -)
+	MUL             // 乘除运算符优先级(*, /, %)
+	PREFIX          // 前缀运算符优先级(!, -, ~, +)
+	POSTFIX         // 后缀运算符优先级(++, --)
+	CALL            // 函数调用优先级(fn())
+	MEMBER          // 成员访问符优先级(::, .)
 )
 
 // precedences 运算符优先级映射表，将token类型映射到对应的优先级常量
@@ -66,7 +65,8 @@ var precedences = map[string]int{
 	lexer.DECREMENT:         POSTFIX,
 	lexer.LPAREN:            CALL,
 	lexer.LBRACKET:          CALL,
-	lexer.DOUBLE_COLON:      NAMESPACE,
+	lexer.DOUBLE_COLON:      MEMBER,
+	lexer.DOT:               MEMBER,
 }
 
 // Parser 语法解析器结构体，负责将词法分析器产生的token流解析为AST
@@ -162,6 +162,7 @@ func NewParser(l *lexer.Lexer) (*Parser, error) {
 		lexer.DOUBLE_COLON:      p.parseNamespaceAccessExpression,
 		lexer.RANGE:             p.parseRangeExpression,
 		lexer.CONTAINS:          p.parseContainsExpression,
+		lexer.DOT:               p.parseMemberAccessExpression,
 	}
 	return p, nil
 }
@@ -181,7 +182,7 @@ func (p *Parser) Advance() {
 func (p *Parser) CheckNextAndAdvance(excepted string) {
 	if p.NextToken.Type != excepted {
 		// 创建语法错误，包含预期和实际token类型信息
-		p.Err = &SyntaxError{
+		p.Err = &errors.SyntaxError{
 			Message:  fmt.Sprintf("expected \"%s\", but got \"%s\".", excepted, p.NextToken.Type),
 			PosStart: p.NextToken.PosStart.Copy(),
 			PosEnd:   p.NextToken.PosEnd.Copy(),
@@ -267,6 +268,9 @@ func (p *Parser) parseStatement(posStart *util.Pos) ast.Statement {
 	case lexer.FOREACH:
 		// 解析为foreach语句
 		return p.parseForEachStatement(posStart)
+	case lexer.IMPORT:
+		// 解析为import语句
+		return p.parseImportStatement(posStart)
 	default:
 		// 解析为表达式语句
 		return p.parseExpressionStatement(posStart)
@@ -358,7 +362,7 @@ func (p *Parser) parseFunctionDeclarationStatement(posStart *util.Pos) *ast.Func
 		if p.CurrToken.Type == lexer.ELLIPSIS {
 			// 检查可变参数是否已经出现过
 			if haveVariadic {
-				p.Err = &SyntaxError{
+				p.Err = &errors.SyntaxError{
 					Message:  "multiple variadic parameters.",
 					PosStart: paraPosStart,
 					PosEnd:   p.CurrToken.PosEnd.Copy(),
@@ -367,7 +371,7 @@ func (p *Parser) parseFunctionDeclarationStatement(posStart *util.Pos) *ast.Func
 			}
 			// 检查是否已经有默认参数
 			if haveDefault {
-				p.Err = &SyntaxError{
+				p.Err = &errors.SyntaxError{
 					Message:  "default parameter cannot be followed by variadic parameter.",
 					PosStart: paraPosStart,
 					PosEnd:   p.CurrToken.PosEnd.Copy(),
@@ -387,7 +391,7 @@ func (p *Parser) parseFunctionDeclarationStatement(posStart *util.Pos) *ast.Func
 		para := expr.(*ast.IdentifierExpression)
 		var defaultValue ast.Expression = nil
 		if haveDefault && p.NextToken.Type != lexer.EQUAL {
-			p.Err = &SyntaxError{
+			p.Err = &errors.SyntaxError{
 				Message:  "non-default parameter follows default parameter.",
 				PosStart: paraPosStart,
 				PosEnd:   p.CurrToken.PosEnd.Copy(),
@@ -398,7 +402,7 @@ func (p *Parser) parseFunctionDeclarationStatement(posStart *util.Pos) *ast.Func
 		if p.NextToken.Type == lexer.EQUAL {
 			// 检查可变参数是否有默认值
 			if isVariadic {
-				p.Err = &SyntaxError{
+				p.Err = &errors.SyntaxError{
 					Message:  "variadic parameter cannot have default value.",
 					PosStart: paraPosStart,
 					PosEnd:   p.CurrToken.PosEnd.Copy(),
@@ -407,7 +411,7 @@ func (p *Parser) parseFunctionDeclarationStatement(posStart *util.Pos) *ast.Func
 			}
 			// 检查是否已经有可变参数
 			if haveVariadic {
-				p.Err = &SyntaxError{
+				p.Err = &errors.SyntaxError{
 					Message:  "variadic parameter cannot be followed by default parameter.",
 					PosStart: paraPosStart,
 					PosEnd:   p.CurrToken.PosEnd.Copy(),
@@ -440,7 +444,7 @@ func (p *Parser) parseFunctionDeclarationStatement(posStart *util.Pos) *ast.Func
 		if p.NextToken.Type != lexer.RPAREN {
 			// 如果已经出现过可变参数，后面不能再有其他参数
 			if haveVariadic {
-				p.Err = &SyntaxError{
+				p.Err = &errors.SyntaxError{
 					Message:  "variadic parameter must be the last parameter.",
 					PosStart: p.NextToken.PosStart.Copy(),
 					PosEnd:   p.NextToken.PosEnd.Copy(),
@@ -676,6 +680,29 @@ func (p *Parser) parseForEachStatement(posStart *util.Pos) *ast.ForEachStatement
 	return fe
 }
 
+// parseImportStatement 解析import语句
+//
+// 参数:
+//
+//	posStart - 语句的起始位置
+//
+// 返回值:
+//
+//	import语句节点ImportStatement
+func (p *Parser) parseImportStatement(posStart *util.Pos) *ast.ImportStatement {
+	is := &ast.ImportStatement{
+		PosStart: posStart,
+	}
+	p.Advance()
+	// 解析模块名
+	is.Module = p.ParseExpression(LOWEST)
+	if p.Err != nil {
+		return nil
+	}
+	is.PosEnd = p.CurrToken.PosEnd.Copy()
+	return is
+}
+
 // parseExpressionStatement 解析表达式语句(由单个表达式组成的语句)
 //
 // 参数:
@@ -708,7 +735,7 @@ func (p *Parser) ParseExpression(precedence int) ast.Expression {
 	prefixFn := p.PrefixParseFns[p.CurrToken.Type]
 	if prefixFn == nil {
 		// 如果没有对应的前缀解析函数，返回语法错误
-		p.Err = &SyntaxError{
+		p.Err = &errors.SyntaxError{
 			Message:  fmt.Sprintf("unexpected \"%s\".", p.CurrToken.Type),
 			PosStart: posStart,
 			PosEnd:   p.CurrToken.PosEnd.Copy(),
@@ -773,7 +800,7 @@ func (p *Parser) parseIntegerExpression(posStart *util.Pos) ast.Expression {
 	num, ok := strconv.ParseInt(p.CurrToken.Literal, 0, 64)
 	if ok != nil {
 		// 转换失败时返回非法token错误
-		p.Err = &lexer.IllegalTokenError{
+		p.Err = &errors.IllegalTokenError{
 			Message:  "illegal integer.",
 			PosStart: posStart,
 			PosEnd:   p.CurrToken.PosEnd.Copy(),
@@ -797,7 +824,7 @@ func (p *Parser) parseFloatExpression(posStart *util.Pos) ast.Expression {
 	num, ok := strconv.ParseFloat(p.CurrToken.Literal, 64)
 	if ok != nil {
 		// 转换失败时返回非法token错误
-		p.Err = &lexer.IllegalTokenError{
+		p.Err = &errors.IllegalTokenError{
 			Message:  "illegal float.",
 			PosStart: posStart,
 			PosEnd:   p.CurrToken.PosEnd.Copy(),
@@ -898,7 +925,7 @@ func (p *Parser) parseVarInitializationExpression(posStart *util.Pos) ast.Expres
 		// 解析解构赋值列表
 		name = p.parseListExpression(p.CurrToken.PosStart.Copy())
 		if !name.IsLvalue() {
-			p.Err = &SyntaxError{
+			p.Err = &errors.SyntaxError{
 				Message:  "destructuring assignment requires lvalues.",
 				PosStart: posStart,
 				PosEnd:   p.CurrToken.PosEnd.Copy(),
@@ -946,7 +973,7 @@ func (p *Parser) parseVarInitializationExpression(posStart *util.Pos) ast.Expres
 //	变量赋值表达式节点VarAssignment
 func (p *Parser) parseVarAssignmentExpression(left ast.Expression, posStart *util.Pos) ast.Expression {
 	if !left.IsLvalue() {
-		p.Err = &SyntaxError{
+		p.Err = &errors.SyntaxError{
 			Message:  "operation \"=\" requires an lvalue operand.",
 			PosStart: posStart,
 			PosEnd:   p.CurrToken.PosEnd.Copy(),
@@ -970,7 +997,7 @@ func (p *Parser) parseVarAssignmentExpression(left ast.Expression, posStart *uti
 func (p *Parser) parseCompoundAssignmentExpression(left ast.Expression, posStart *util.Pos) ast.Expression {
 	// 检查左侧表达式是否为左值
 	if !left.IsLvalue() {
-		p.Err = &SyntaxError{
+		p.Err = &errors.SyntaxError{
 			Message:  fmt.Sprintf("operation \"%s\" requires an lvalue operand.", p.CurrToken.Literal),
 			PosStart: posStart,
 			PosEnd:   p.CurrToken.PosEnd.Copy(),
@@ -1014,7 +1041,7 @@ func (p *Parser) parsePrefixUnaryIncDecExpression(posStart *util.Pos) ast.Expres
 	}
 	// 检查右侧表达式是否为左值
 	if !right.IsLvalue() {
-		p.Err = &SyntaxError{
+		p.Err = &errors.SyntaxError{
 			Message:  "operation \"++\" or \"--\" requires an lvalue operand.",
 			PosStart: posStart,
 			PosEnd:   p.CurrToken.PosEnd.Copy(),
@@ -1034,7 +1061,7 @@ func (p *Parser) parsePostfixUnaryIncDecExpression(left ast.Expression, posStart
 	operator := p.CurrToken.Copy()
 	// 检查左侧表达式是否为左值
 	if !left.IsLvalue() {
-		p.Err = &SyntaxError{
+		p.Err = &errors.SyntaxError{
 			Message:  "operation \"++\" or \"--\" requires an lvalue operand.",
 			PosStart: posStart,
 			PosEnd:   p.CurrToken.PosEnd.Copy(),
@@ -1232,6 +1259,7 @@ func (p *Parser) parseCallExpression(left ast.Expression, posStart *util.Pos) as
 	ce := &ast.CallExpression{
 		Function: left,
 		Argument: make([]ast.Expression, 0),
+		IsUnpack: make([]bool, 0),
 		PosStart: posStart,
 	}
 	p.Advance()
@@ -1243,6 +1271,13 @@ func (p *Parser) parseCallExpression(left ast.Expression, posStart *util.Pos) as
 				return nil
 			}
 			ce.Argument = append(ce.Argument, arg)
+			// 检查是否为解包参数
+			if p.NextToken.Type == lexer.ELLIPSIS {
+				p.Advance()
+				ce.IsUnpack = append(ce.IsUnpack, true)
+			} else {
+				ce.IsUnpack = append(ce.IsUnpack, false)
+			}
 			if p.NextToken.Type != lexer.RPAREN {
 				p.CheckNextAndAdvance(lexer.COMMA)
 				if p.Err != nil {
@@ -1251,6 +1286,7 @@ func (p *Parser) parseCallExpression(left ast.Expression, posStart *util.Pos) as
 			}
 		} else {
 			ce.Argument = append(ce.Argument, nil)
+			ce.IsUnpack = append(ce.IsUnpack, false)
 		}
 		p.Advance()
 	}
@@ -1365,4 +1401,30 @@ func (p *Parser) parseContainsExpression(left ast.Expression, posStart *util.Pos
 	}
 	ie.PosEnd = p.CurrToken.PosEnd.Copy()
 	return ie
+}
+
+// parseMemberAccessExpression 解析成员访问表达式
+//
+// 参数:
+//
+//	left - 左侧目标表达式
+//	posStart - 表达式的起始位置
+//
+// 返回值:
+//
+//	成员访问表达式节点 MemberAccessExpression
+func (p *Parser) parseMemberAccessExpression(left ast.Expression, posStart *util.Pos) ast.Expression {
+	ma := &ast.MemberAccessExpression{
+		Target:   left,
+		PosStart: posStart,
+	}
+	p.Advance()
+	// 解析成员名
+	member := p.parseIdentifierExpression(p.CurrToken.PosStart.Copy())
+	if p.Err != nil {
+		return nil
+	}
+	ma.Member = member
+	ma.PosEnd = p.CurrToken.PosEnd.Copy()
+	return ma
 }

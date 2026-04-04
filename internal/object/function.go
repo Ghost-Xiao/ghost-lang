@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Ghost-Xiao/ghost-lang/internal/errors"
 	"github.com/Ghost-Xiao/ghost-lang/internal/frame"
 	"github.com/Ghost-Xiao/ghost-lang/internal/parser/ast"
 	"github.com/Ghost-Xiao/ghost-lang/internal/util"
@@ -53,7 +54,7 @@ func (f *Function) String() string {
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (f *Function) Negative(posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"-\".",
 		PosStart: posStart,
@@ -74,7 +75,7 @@ func (f *Function) Negative(posStart, posEnd *util.Pos, frame *frame.Frame) (Obj
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (f *Function) BitNot(posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"~\".",
 		PosStart: posStart,
@@ -95,7 +96,7 @@ func (f *Function) BitNot(posStart, posEnd *util.Pos, frame *frame.Frame) (Objec
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (f *Function) Not(posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"!\".",
 		PosStart: posStart,
@@ -117,7 +118,7 @@ func (f *Function) Not(posStart, posEnd *util.Pos, frame *frame.Frame) (Object, 
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (f *Function) Add(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"+\".",
 		PosStart: posStart,
@@ -139,7 +140,7 @@ func (f *Function) Add(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame)
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (f *Function) Subtract(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"-\".",
 		PosStart: posStart,
@@ -161,7 +162,7 @@ func (f *Function) Subtract(_ Object, posStart, posEnd *util.Pos, frame *frame.F
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (f *Function) Multiply(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"*\".",
 		PosStart: posStart,
@@ -183,7 +184,7 @@ func (f *Function) Multiply(_ Object, posStart, posEnd *util.Pos, frame *frame.F
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (f *Function) Divide(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"/\".",
 		PosStart: posStart,
@@ -205,7 +206,7 @@ func (f *Function) Divide(_ Object, posStart, posEnd *util.Pos, frame *frame.Fra
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (f *Function) Mod(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"%\".",
 		PosStart: posStart,
@@ -274,7 +275,7 @@ func (f *Function) NotEqual(other Object, _, _ *util.Pos, _ *frame.Frame) (Objec
 //
 //	Object - 比较结果
 func (f *Function) LessThan(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"<\".",
 		PosStart: posStart,
@@ -295,7 +296,7 @@ func (f *Function) LessThan(_ Object, posStart, posEnd *util.Pos, frame *frame.F
 //
 //	Object - 比较结果
 func (f *Function) GreaterThan(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \">\".",
 		PosStart: posStart,
@@ -316,7 +317,7 @@ func (f *Function) GreaterThan(_ Object, posStart, posEnd *util.Pos, frame *fram
 //
 //	Object - 比较结果
 func (f *Function) LessThanOrEqual(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"<=\".",
 		PosStart: posStart,
@@ -337,7 +338,7 @@ func (f *Function) LessThanOrEqual(_ Object, posStart, posEnd *util.Pos, frame *
 //
 //	Object - 比较结果
 func (f *Function) GreaterThanOrEqual(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \">=\".",
 		PosStart: posStart,
@@ -359,7 +360,7 @@ func (f *Function) GreaterThanOrEqual(_ Object, posStart, posEnd *util.Pos, fram
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (f *Function) BitAnd(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"&\".",
 		PosStart: posStart,
@@ -381,7 +382,7 @@ func (f *Function) BitAnd(_ Object, posStart, posEnd *util.Pos, frame *frame.Fra
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (f *Function) BitOr(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"|\".",
 		PosStart: posStart,
@@ -403,7 +404,7 @@ func (f *Function) BitOr(_ Object, posStart, posEnd *util.Pos, frame *frame.Fram
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (f *Function) Xor(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"^\".",
 		PosStart: posStart,
@@ -425,7 +426,7 @@ func (f *Function) Xor(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame)
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (f *Function) LeftShift(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"<<\".",
 		PosStart: posStart,
@@ -447,7 +448,7 @@ func (f *Function) LeftShift(_ Object, posStart, posEnd *util.Pos, frame *frame.
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (f *Function) RightShift(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \">>\".",
 		PosStart: posStart,
@@ -469,7 +470,7 @@ func (f *Function) RightShift(_ Object, posStart, posEnd *util.Pos, frame *frame
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (f *Function) And(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"&&\".",
 		PosStart: posStart,
@@ -491,7 +492,7 @@ func (f *Function) And(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame)
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (f *Function) Or(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"||\".",
 		PosStart: posStart,
@@ -512,7 +513,7 @@ func (f *Function) Or(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) 
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (f *Function) Index(other Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &TypeError{
+	return nil, &errors.TypeError{
 		Frame:    frame,
 		Message:  "index expression not supported for this type.",
 		PosStart: posStart,

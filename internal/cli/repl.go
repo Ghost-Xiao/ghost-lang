@@ -2,13 +2,14 @@ package cli
 
 import (
 	"bufio"
-	"errors"
+	e "errors"
 	"fmt"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 
+	"github.com/Ghost-Xiao/ghost-lang/internal/errors"
 	"github.com/Ghost-Xiao/ghost-lang/internal/evaluator"
 	"github.com/Ghost-Xiao/ghost-lang/internal/frame"
 	"github.com/Ghost-Xiao/ghost-lang/internal/lexer"
@@ -58,6 +59,8 @@ func StartREPL() {
 		PosEnd:   nil,
 		Parent:   nil,
 	}
+	// 创建模块缓存
+	moduleCache := make(map[string]int)
 	scanner := bufio.NewScanner(os.Stdin)
 	// 交互式输入循环
 	for !exitRequested {
@@ -90,8 +93,8 @@ func StartREPL() {
 			program := p.ParseProgram()
 			if p.Err != nil {
 				if !shouldContinue(p.Err) {
-					var syntaxError *parser.SyntaxError
-					ok := errors.As(p.Err, &syntaxError)
+					var syntaxError *errors.SyntaxError
+					ok := e.As(p.Err, &syntaxError)
 					if ok && syntaxError.Message == "expected \"SEMICOLON\", but got \"EOF\"." {
 						// 重试解析为表达式
 						l2 := lexer.NewLexer("<stdin>", source)
@@ -122,7 +125,7 @@ func StartREPL() {
 							}
 						}
 						// 执行表达式并输出结果
-						e := evaluator.NewEvaluator(f)
+						e := evaluator.NewEvaluator(f, moduleCache)
 						ret := e.Eval(expr, env)
 						if e.Err != nil {
 							printError(e.Err)
@@ -149,7 +152,7 @@ func StartREPL() {
 				}
 			}
 			// 执行程序
-			e := evaluator.NewEvaluator(f)
+			e := evaluator.NewEvaluator(f, moduleCache)
 			res := e.Eval(program, env)
 			if e.Err != nil {
 				printError(e.Err)

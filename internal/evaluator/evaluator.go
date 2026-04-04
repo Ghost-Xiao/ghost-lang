@@ -2,11 +2,16 @@ package evaluator
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/Ghost-Xiao/ghost-lang/internal/errors"
 	"github.com/Ghost-Xiao/ghost-lang/internal/frame"
 	"github.com/Ghost-Xiao/ghost-lang/internal/lexer"
+	"github.com/Ghost-Xiao/ghost-lang/internal/module"
 	"github.com/Ghost-Xiao/ghost-lang/internal/object"
+	"github.com/Ghost-Xiao/ghost-lang/internal/parser"
 	"github.com/Ghost-Xiao/ghost-lang/internal/parser/ast"
 	"github.com/Ghost-Xiao/ghost-lang/internal/util"
 )
@@ -42,8 +47,9 @@ type indexable interface {
 // Evaluator 解释器结构体，负责执行AST节点并管理运行时状态
 // 包含一个错误字段用于捕获和传递运行时错误
 type Evaluator struct {
-	Frame *frame.Frame // 调用栈帧
-	Err   error        // 运行时错误信息
+	Frame       *frame.Frame   // 调用栈帧
+	Err         error          // 运行时错误信息
+	ModuleCache map[string]int // 模块缓存及其状态，1表示加载中，2表示已加载
 }
 
 // NewEvaluator 创建一个新的解释器实例
@@ -51,14 +57,16 @@ type Evaluator struct {
 // 参数：
 //
 //	frame - 调用栈帧
+//	moduleCache - 模块缓存及其状态，只包含加载中的模块
 //
 // 返回值:
 //
 //	*Evaluator - 初始化后的解释器指针
-func NewEvaluator(frame *frame.Frame) *Evaluator {
+func NewEvaluator(frame *frame.Frame, moduleCache map[string]int) *Evaluator {
 	return &Evaluator{
-		Frame: frame,
-		Err:   nil,
+		Frame:       frame,
+		Err:         nil,
+		ModuleCache: moduleCache,
 	}
 }
 
@@ -95,6 +103,8 @@ func (e *Evaluator) Eval(nodes ast.Node, env *object.Environment) object.Object 
 		return e.evalNamespaceStatement(n, env)
 	case *ast.ForEachStatement:
 		return e.evalForEachStatement(n, env)
+	case *ast.ImportStatement:
+		return e.evalImportStatement(n, env)
 	case *ast.PrefixExpression:
 		return e.evalPrefixExpression(n, env)
 	case *ast.InfixExpression:
@@ -139,6 +149,8 @@ func (e *Evaluator) Eval(nodes ast.Node, env *object.Environment) object.Object 
 		return e.evalRangeExpression(n, env)
 	case *ast.ContainsExpression:
 		return e.evalContainsExpression(n, env)
+	case *ast.MemberAccessExpression:
+		return e.evalMemberAccessExpression(n, env)
 	default:
 		panic(fmt.Sprintf("unknown node type: %T", n))
 	}
@@ -198,7 +210,7 @@ func (e *Evaluator) evalForStatement(forStatement *ast.ForStatement, env *object
 	}
 	// 判断是不是布尔值
 	if _, ok := condition.(*object.Bool); !ok {
-		e.Err = &TypeError{
+		e.Err = &errors.TypeError{
 			Frame:    e.Frame,
 			Message:  "non-bool condition in for loop.",
 			PosStart: forStatement.PosStart,
@@ -231,7 +243,7 @@ func (e *Evaluator) evalForStatement(forStatement *ast.ForStatement, env *object
 		}
 		// 判断是不是布尔值
 		if _, ok := condition.(*object.Bool); !ok {
-			e.Err = &TypeError{
+			e.Err = &errors.TypeError{
 				Frame:    e.Frame,
 				Message:  "non-bool condition in for loop.",
 				PosStart: forStatement.PosStart,
@@ -259,7 +271,7 @@ func (e *Evaluator) evalFunctionDeclarationStatement(functionDeclarationStatemen
 	funcName := functionDeclarationStatement.Name.(*ast.IdentifierExpression).Name
 	// 是否已定义过函数
 	if _, ok := env.Get(funcName); ok {
-		e.Err = &VariableError{
+		e.Err = &errors.VariableError{
 			Frame:    e.Frame,
 			Message:  fmt.Sprintf("function \"%s\" already defined.", funcName),
 			PosStart: functionDeclarationStatement.PosStart,
@@ -296,8 +308,7 @@ func (e *Evaluator) evalFunctionDeclarationStatement(functionDeclarationStatemen
 //	object.Object
 func (e *Evaluator) evalReturnStatement(returnStatement *ast.ReturnStatement, env *object.Environment) object.Object {
 	if e.Frame.Parent == nil {
-		e.Err = &SyntaxError{
-			Frame:    e.Frame,
+		e.Err = &errors.SyntaxError{
 			Message:  "return statement is only allowed inside functions.",
 			PosStart: returnStatement.PosStart,
 			PosEnd:   returnStatement.PosEnd,
@@ -337,8 +348,7 @@ func (e *Evaluator) evalBreakStatement(breakStatement *ast.BreakStatement, env *
 		}
 	}
 	if !inLoop {
-		e.Err = &SyntaxError{
-			Frame:    e.Frame,
+		e.Err = &errors.SyntaxError{
 			Message:  "break statement is only allowed inside loops.",
 			PosStart: breakStatement.PosStart,
 			PosEnd:   breakStatement.PosEnd,
@@ -371,8 +381,7 @@ func (e *Evaluator) evalContinueStatement(continueStatement *ast.ContinueStateme
 		}
 	}
 	if !inLoop {
-		e.Err = &SyntaxError{
-			Frame:    e.Frame,
+		e.Err = &errors.SyntaxError{
 			Message:  "continue statement is only allowed inside loops.",
 			PosStart: continueStatement.PosStart,
 			PosEnd:   continueStatement.PosEnd,
@@ -405,7 +414,7 @@ func (e *Evaluator) evalIndexExpression(indexExpression *ast.IndexExpression, en
 	// 判断索引是否是整数
 	intIdx, ok := idxObj.(*object.Int)
 	if !ok {
-		e.Err = &TypeError{
+		e.Err = &errors.TypeError{
 			Frame:    e.Frame,
 			Message:  "index must be integer.",
 			PosStart: indexExpression.PosStart,
@@ -438,7 +447,7 @@ func (e *Evaluator) evalNamespaceAccessExpression(namespaceAccessExpression *ast
 		return nil
 	}
 	if _, ok := namespaceAccessExpression.Member.(*ast.IdentifierExpression); !ok {
-		e.Err = &TypeError{
+		e.Err = &errors.TypeError{
 			Frame:    e.Frame,
 			Message:  "member must be identifier.",
 			PosStart: namespaceAccessExpression.PosStart,
@@ -452,7 +461,7 @@ func (e *Evaluator) evalNamespaceAccessExpression(namespaceAccessExpression *ast
 		// 获取成员
 		ret, ok := namespace.Member.Get(member)
 		if !ok {
-			e.Err = &VariableError{
+			e.Err = &errors.VariableError{
 				Frame:    e.Frame,
 				Message:  fmt.Sprintf("undefined member \"%s\".", member),
 				PosStart: namespaceAccessExpression.PosStart,
@@ -462,11 +471,75 @@ func (e *Evaluator) evalNamespaceAccessExpression(namespaceAccessExpression *ast
 		}
 		return ret.Value
 	} else {
-		e.Err = &VariableError{
+		e.Err = &errors.VariableError{
 			Frame:    e.Frame,
 			Message:  "target must be namespace.",
 			PosStart: namespaceAccessExpression.PosStart,
 			PosEnd:   namespaceAccessExpression.PosEnd,
+		}
+		return nil
+	}
+}
+
+// evalMemberAccessExpression 处理成员访问表达式节点
+// 执行成员访问表达式（用于模块访问）
+//
+// 参数:
+//
+//	memberAccessExpression - 成员访问表达式节点
+//	env - 执行环境
+//
+// 返回值:
+//
+//	object.Object
+func (e *Evaluator) evalMemberAccessExpression(memberAccessExpression *ast.MemberAccessExpression, env *object.Environment) object.Object {
+	target := e.Eval(memberAccessExpression.Target, env)
+	if e.Err != nil {
+		return nil
+	}
+	if _, ok := memberAccessExpression.Member.(*ast.IdentifierExpression); !ok {
+		e.Err = &errors.TypeError{
+			Frame:    e.Frame,
+			Message:  "member must be identifier.",
+			PosStart: memberAccessExpression.PosStart,
+			PosEnd:   memberAccessExpression.PosEnd,
+		}
+		return nil
+	}
+	member := memberAccessExpression.Member.(*ast.IdentifierExpression).Name
+	// 判断是否是模块
+	if mod, ok := target.(*object.Module); ok {
+		// 获取成员
+		ret, ok := mod.Env.Get(member)
+		if !ok {
+			e.Err = &errors.VariableError{
+				Frame:    e.Frame,
+				Message:  fmt.Sprintf("undefined member \"%s\".", member),
+				PosStart: memberAccessExpression.PosStart,
+				PosEnd:   memberAccessExpression.PosEnd,
+			}
+			return nil
+		}
+		return ret.Value
+	} else if mod, ok := target.(object.BuiltinModule); ok {
+		// 获取成员
+		ret, ok := mod.Load().Get(member)
+		if !ok {
+			e.Err = &errors.VariableError{
+				Frame:    e.Frame,
+				Message:  fmt.Sprintf("undefined member \"%s\".", member),
+				PosStart: memberAccessExpression.PosStart,
+				PosEnd:   memberAccessExpression.PosEnd,
+			}
+			return nil
+		}
+		return ret.Value
+	} else {
+		e.Err = &errors.VariableError{
+			Frame:    e.Frame,
+			Message:  "target must be module.",
+			PosStart: memberAccessExpression.PosStart,
+			PosEnd:   memberAccessExpression.PosEnd,
 		}
 		return nil
 	}
@@ -509,7 +582,7 @@ func (e *Evaluator) evalNamespaceStatement(namespaceStatement *ast.NamespaceStat
 	name := namespaceStatement.Name.(*ast.IdentifierExpression).Name
 	// 是否已定义过命名空间
 	if _, ok := env.Get(name); ok {
-		e.Err = &VariableError{
+		e.Err = &errors.VariableError{
 			Frame:    e.Frame,
 			Message:  fmt.Sprintf("namespace \"%s\" already defined.", name),
 			PosStart: namespaceStatement.PosStart,
@@ -532,8 +605,7 @@ func (e *Evaluator) evalNamespaceStatement(namespaceStatement *ast.NamespaceStat
 				switch s := stmt.(type) {
 				case *ast.ExpressionStatement:
 					if _, ok := s.Expr.(ast.Definition); !ok {
-						e.Err = &SyntaxError{
-							Frame:    e.Frame,
+						e.Err = &errors.SyntaxError{
 							Message:  "namespace body must be definitions.",
 							PosStart: namespaceStatement.PosStart,
 							PosEnd:   namespaceStatement.PosEnd,
@@ -542,8 +614,7 @@ func (e *Evaluator) evalNamespaceStatement(namespaceStatement *ast.NamespaceStat
 					}
 				default:
 					if _, ok := s.(ast.Definition); !ok {
-						e.Err = &SyntaxError{
-							Frame:    e.Frame,
+						e.Err = &errors.SyntaxError{
 							Message:  "namespace body must be definitions.",
 							PosStart: namespaceStatement.PosStart,
 							PosEnd:   namespaceStatement.PosEnd,
@@ -558,8 +629,7 @@ func (e *Evaluator) evalNamespaceStatement(namespaceStatement *ast.NamespaceStat
 			}
 		default:
 			if _, ok := expr.(ast.Definition); !ok {
-				e.Err = &SyntaxError{
-					Frame:    e.Frame,
+				e.Err = &errors.SyntaxError{
 					Message:  "namespace body must be definitions.",
 					PosStart: namespaceStatement.PosStart,
 					PosEnd:   namespaceStatement.PosEnd,
@@ -573,8 +643,7 @@ func (e *Evaluator) evalNamespaceStatement(namespaceStatement *ast.NamespaceStat
 		}
 	default:
 		if _, ok := n.(ast.Definition); !ok {
-			e.Err = &SyntaxError{
-				Frame:    e.Frame,
+			e.Err = &errors.SyntaxError{
 				Message:  "namespace body must be definitions.",
 				PosStart: namespaceStatement.PosStart,
 				PosEnd:   namespaceStatement.PosEnd,
@@ -630,7 +699,7 @@ func (e *Evaluator) evalForEachStatement(forEachStatement *ast.ForEachStatement,
 	// 检查目标是否可索引
 	idxable, ok := target.(indexable)
 	if !ok {
-		e.Err = &TypeError{
+		e.Err = &errors.TypeError{
 			Frame:    e.Frame,
 			Message:  "target must be indexable.",
 			PosStart: forEachStatement.PosStart,
@@ -646,7 +715,7 @@ func (e *Evaluator) evalForEachStatement(forEachStatement *ast.ForEachStatement,
 			return nil
 		}
 		if stepValue.Type() != "Int" {
-			e.Err = &TypeError{
+			e.Err = &errors.TypeError{
 				Frame:    e.Frame,
 				Message:  "step must be an integer.",
 				PosStart: forEachStatement.PosStart,
@@ -656,7 +725,7 @@ func (e *Evaluator) evalForEachStatement(forEachStatement *ast.ForEachStatement,
 		}
 		step = stepValue.(*object.Int).Value
 		if step <= 0 {
-			e.Err = &TypeError{
+			e.Err = &errors.TypeError{
 				Frame:    e.Frame,
 				Message:  "step must be a positive integer.",
 				PosStart: forEachStatement.PosStart,
@@ -672,7 +741,7 @@ func (e *Evaluator) evalForEachStatement(forEachStatement *ast.ForEachStatement,
 				indexName := forEachStatement.Index.(*ast.IdentifierExpression).Name
 				// 检查变量是否已定义
 				if _, ok := forEachEnv.Get(indexName); ok && i == 0 {
-					e.Err = &VariableError{
+					e.Err = &errors.VariableError{
 						Frame:    e.Frame,
 						Message:  fmt.Sprintf("variable \"%s\" already defined.", indexName),
 						PosStart: forEachStatement.PosStart,
@@ -692,7 +761,7 @@ func (e *Evaluator) evalForEachStatement(forEachStatement *ast.ForEachStatement,
 			valName := forEachStatement.Value.(*ast.IdentifierExpression).Name
 			// 检查变量是否已定义
 			if _, ok := forEachEnv.Get(valName); ok && i == 0 {
-				e.Err = &VariableError{
+				e.Err = &errors.VariableError{
 					Frame:    e.Frame,
 					Message:  fmt.Sprintf("variable \"%s\" already defined.", valName),
 					PosStart: forEachStatement.PosStart,
@@ -762,6 +831,182 @@ func (e *Evaluator) evalForEachStatement(forEachStatement *ast.ForEachStatement,
 			break
 		}
 	}
+	return nil
+}
+
+// evalImportStatement 处理导入语句节点
+// 导入指定模块
+//
+// 参数:
+//
+//	importStatement - 导入语句节点
+//	env - 执行环境
+//
+// 返回值:
+//
+//	object.Object
+func (e *Evaluator) evalImportStatement(importStatement *ast.ImportStatement, env *object.Environment) object.Object {
+	// 检查是否在全局环境中执行
+	if env.Outer != nil {
+		e.Err = &errors.TypeError{
+			Frame:    e.Frame,
+			Message:  "import statement must be in global scope.",
+			PosStart: importStatement.PosStart,
+			PosEnd:   importStatement.PosEnd,
+		}
+		return nil
+	}
+	// 评估模块名称
+	moduleName := e.Eval(importStatement.Module, env)
+	if e.Err != nil {
+		return nil
+	}
+	if moduleName.Type() != "String" {
+		e.Err = &errors.TypeError{
+			Frame:    e.Frame,
+			Message:  "module name must be a string.",
+			PosStart: importStatement.PosStart,
+			PosEnd:   importStatement.PosEnd,
+		}
+		return nil
+	}
+	// 检查模块是否含有".gh"后缀
+	moduleNameStr := moduleName.(*object.String).Value
+	if !strings.HasSuffix(moduleNameStr, ".gh") {
+		moduleNameStr += ".gh"
+	}
+	moduleBaseName := moduleNameStr[:len(moduleNameStr)-3]
+	// 检查模块是否已加载
+	if state, ok := e.ModuleCache[moduleBaseName]; ok {
+		if state == 2 {
+			return nil
+		}
+		// 如果模块正在加载中，说明是循环导入
+		if state == 1 {
+			// 构建导入链
+			importChain := []string{}
+			for name, state := range e.ModuleCache {
+				if state == 1 {
+					importChain = append(importChain, name)
+				}
+			}
+			// 添加当前模块到导入链
+			importChain = append(importChain, moduleBaseName)
+			e.Err = &errors.ModuleError{
+				Frame:    e.Frame,
+				Message:  fmt.Sprintf("circular import detected: %s", strings.Join(importChain, " -> ")),
+				PosStart: importStatement.PosStart,
+				PosEnd:   importStatement.PosEnd,
+			}
+			return nil
+		}
+	}
+	// 检查模块名是否被绑定为常量
+	if sym_, ok := env.Get(moduleBaseName); ok && sym_.IsConst {
+		e.Err = &errors.VariableError{
+			Frame:    e.Frame,
+			Message:  fmt.Sprintf("module name \"%s\" is already bound as a constant.", moduleBaseName),
+			PosStart: importStatement.PosStart,
+			PosEnd:   importStatement.PosEnd,
+		}
+		return nil
+	}
+	// 如果是内置模块
+	if mod, ok := module.BuiltinModules[moduleBaseName]; ok {
+		moduleSym := &object.Symbol{
+			Name:    moduleBaseName,
+			Value:   mod,
+			IsConst: true,
+		}
+		// 绑定模块
+		env.Set(moduleBaseName, moduleSym)
+		// 将模块缓存为已加载状态
+		e.ModuleCache[moduleBaseName] = 2
+		return nil
+	}
+	// 将模块名转换为绝对路径
+	modulePath, err := filepath.Abs(moduleNameStr)
+	if err != nil {
+		e.Err = &errors.ModuleError{
+			Frame:    e.Frame,
+			Message:  fmt.Sprintf("failed to convert module name to absolute path: \"%s\"", moduleNameStr),
+			PosStart: importStatement.PosStart,
+			PosEnd:   importStatement.PosEnd,
+		}
+		return nil
+	}
+	// 读取模块文件
+	moduleContent, err := os.ReadFile(modulePath)
+	if err != nil {
+		e.Err = &errors.ModuleError{
+			Frame:    e.Frame,
+			Message:  fmt.Sprintf("failed to read module file \"%s\"", modulePath),
+			PosStart: importStatement.PosStart,
+			PosEnd:   importStatement.PosEnd,
+		}
+		return nil
+	}
+	// 将模块状态设置为加载中
+	e.ModuleCache[moduleBaseName] = 1
+	// 解析模块内容
+	code := strings.ReplaceAll(string(moduleContent), "\t", "    ")
+	baseName := filepath.Base(modulePath)
+	l := lexer.NewLexer(baseName, code)
+	p, err2 := parser.NewParser(l)
+	if err2 != nil {
+		e.Err = err2
+		return nil
+	}
+	program := p.ParseProgram()
+	if p.Err != nil {
+		e.Err = p.Err
+		return nil
+	}
+	// 创建解释器环境
+	moduleEnv := &object.Environment{
+		Name:  baseName,
+		Store: make(map[string]*object.Symbol),
+		Outer: nil,
+	}
+	// 加载内置函数
+	for name, builtin := range object.Builtins {
+		moduleEnv.Store[name] = &object.Symbol{
+			Name:    name,
+			Value:   builtin,
+			IsConst: true,
+		}
+	}
+	f := &frame.Frame{
+		FuncName: baseName,
+		PosStart: nil,
+		PosEnd:   nil,
+		Parent:   nil,
+	}
+	// 复制当前模块缓存，只包含加载中的模块
+	moduleCache := make(map[string]int)
+	for name, state := range e.ModuleCache {
+		if state == 1 {
+			moduleCache[name] = 1
+		}
+	}
+	evaluator := NewEvaluator(f, moduleCache)
+	evaluator.Eval(program, moduleEnv)
+	if evaluator.Err != nil {
+		e.Err = evaluator.Err
+		return nil
+	}
+	// 绑定模块
+	moduleSym := &object.Symbol{
+		Name: moduleBaseName,
+		Value: &object.Module{
+			Name: moduleBaseName,
+			Env:  moduleEnv,
+		},
+		IsConst: true,
+	}
+	env.Set(moduleBaseName, moduleSym)
+	// 将模块缓存为已加载状态
+	e.ModuleCache[moduleBaseName] = 2
 	return nil
 }
 
@@ -854,7 +1099,7 @@ func (e *Evaluator) evalStringExpression(stringExpression *ast.StringExpression,
 //
 // 错误处理:
 //
-//	若列表元素类型不一致，设置TypeError并返回nil
+//	若列表元素类型不一致，设置errors.TypeError并返回nil
 func (e *Evaluator) evalListExpression(listExpression *ast.ListExpression, env *object.Environment) object.Object {
 	elements := make([]object.Object, 0, len(listExpression.Value))
 	var firstType string
@@ -870,7 +1115,7 @@ func (e *Evaluator) evalListExpression(listExpression *ast.ListExpression, env *
 		} else {
 			// 检查后续元素类型是否与第一个元素一致
 			if element.Type() != firstType {
-				e.Err = &TypeError{
+				e.Err = &errors.TypeError{
 					Frame:    e.Frame,
 					Message:  "list elements must have consistent types.",
 					PosStart: listExpression.PosStart,
@@ -898,12 +1143,12 @@ func (e *Evaluator) evalListExpression(listExpression *ast.ListExpression, env *
 //
 // 错误处理:
 //
-//	若标识符未定义，设置VariableError并返回nil
+//	若标识符未定义，设置errors.VariableError并返回nil
 func (e *Evaluator) evalIdentifierExpression(identifierExpression *ast.IdentifierExpression, env *object.Environment) object.Object {
 	varName := identifierExpression.Name
 	val, ok := env.Get(varName)
 	if !ok {
-		e.Err = &VariableError{
+		e.Err = &errors.VariableError{
 			Frame:    e.Frame,
 			Message:  fmt.Sprintf("undefined variable \"%s\".", varName),
 			PosStart: identifierExpression.PosStart,
@@ -936,7 +1181,7 @@ func (e *Evaluator) evalVarInitializationExpression(varInitialization *ast.VarIn
 		varName := varInitialization.Name.(*ast.IdentifierExpression).Name
 		// 检查变量是否已定义
 		if env.Exists(varName) {
-			e.Err = &VariableError{
+			e.Err = &errors.VariableError{
 				Frame:    e.Frame,
 				Message:  fmt.Sprintf("variable \"%s\" already defined.", varName),
 				PosStart: varInitialization.PosStart,
@@ -964,7 +1209,7 @@ func (e *Evaluator) evalVarInitializationExpression(varInitialization *ast.VarIn
 			return nil
 		}
 		if val.Type() != "List" {
-			e.Err = &TypeError{
+			e.Err = &errors.TypeError{
 				Frame:    e.Frame,
 				Message:  "the right-hand side of destructuring assignment must be a list expression.",
 				PosStart: varInitialization.PosStart,
@@ -975,7 +1220,7 @@ func (e *Evaluator) evalVarInitializationExpression(varInitialization *ast.VarIn
 		// 判断变量个数与列表元素个数是否一致
 		vars := varInitialization.Name.(*ast.ListExpression).Value
 		if len(vars) != len(val.(*object.List).Elements) {
-			e.Err = &TypeError{
+			e.Err = &errors.TypeError{
 				Frame:    e.Frame,
 				Message:  "the number of variables must match the number of elements in the list expression.",
 				PosStart: varInitialization.PosStart,
@@ -988,7 +1233,7 @@ func (e *Evaluator) evalVarInitializationExpression(varInitialization *ast.VarIn
 			varName := varExpr.(*ast.IdentifierExpression).Name
 			// 检查变量是否已定义
 			if env.Exists(varName) {
-				e.Err = &VariableError{
+				e.Err = &errors.VariableError{
 					Frame:    e.Frame,
 					Message:  fmt.Sprintf("variable \"%s\" already defined.", varName),
 					PosStart: varInitialization.PosStart,
@@ -1004,7 +1249,7 @@ func (e *Evaluator) evalVarInitializationExpression(varInitialization *ast.VarIn
 		}
 		return val
 	default:
-		e.Err = &TypeError{
+		e.Err = &errors.TypeError{
 			Frame:    e.Frame,
 			Message:  "invalid variable name type.",
 			PosStart: varInitialization.PosStart,
@@ -1033,7 +1278,7 @@ func (e *Evaluator) getSymbol(expr ast.Expression, env *object.Environment, posS
 	case *ast.IdentifierExpression:
 		sym, ok := env.Get(ex.Name)
 		if !ok {
-			return nil, &VariableError{
+			return nil, &errors.VariableError{
 				Frame:    e.Frame,
 				Message:  fmt.Sprintf("undefined variable \"%s\".", ex.Name),
 				PosStart: posStart,
@@ -1047,7 +1292,7 @@ func (e *Evaluator) getSymbol(expr ast.Expression, env *object.Environment, posS
 			return nil, e.Err
 		}
 		if _, ok := ex.Member.(*ast.IdentifierExpression); !ok {
-			return nil, &TypeError{
+			return nil, &errors.TypeError{
 				Frame:    e.Frame,
 				Message:  "member must be identifier.",
 				PosStart: posStart,
@@ -1058,7 +1303,7 @@ func (e *Evaluator) getSymbol(expr ast.Expression, env *object.Environment, posS
 		if namespace, ok := tar.(*object.Namespace); ok {
 			ret, ok := namespace.Member.Get(member)
 			if !ok {
-				return nil, &VariableError{
+				return nil, &errors.VariableError{
 					Frame:    e.Frame,
 					Message:  fmt.Sprintf("undefined member \"%s\".", member),
 					PosStart: posStart,
@@ -1067,14 +1312,46 @@ func (e *Evaluator) getSymbol(expr ast.Expression, env *object.Environment, posS
 			}
 			return ret, nil
 		}
-		return nil, &VariableError{
+		return nil, &errors.VariableError{
 			Frame:    e.Frame,
 			Message:  "target must be namespace.",
 			PosStart: posStart,
 			PosEnd:   posEnd,
 		}
+	case *ast.MemberAccessExpression:
+		tar := e.Eval(ex.Target, env)
+		if e.Err != nil {
+			return nil, e.Err
+		}
+		if _, ok := ex.Member.(*ast.IdentifierExpression); !ok {
+			return nil, &errors.TypeError{
+				Frame:    e.Frame,
+				Message:  "member must be identifier.",
+				PosStart: posStart,
+				PosEnd:   posEnd,
+			}
+		}
+		member := ex.Member.(*ast.IdentifierExpression).Name
+		if module, ok := tar.(*object.Module); ok {
+			ret, ok := module.Env.Get(member)
+			if !ok {
+				return nil, &errors.VariableError{
+					Frame:    e.Frame,
+					Message:  fmt.Sprintf("undefined member \"%s\".", member),
+					PosStart: posStart,
+					PosEnd:   posEnd,
+				}
+			}
+			return ret, nil
+		}
+		return nil, &errors.VariableError{
+			Frame:    e.Frame,
+			Message:  "target must be module.",
+			PosStart: posStart,
+			PosEnd:   posEnd,
+		}
 	default:
-		return nil, &TypeError{
+		return nil, &errors.TypeError{
 			Frame:    e.Frame,
 			Message:  "invalid variable name type.",
 			PosStart: posStart,
@@ -1101,7 +1378,7 @@ func (e *Evaluator) checkIndexTargetConst(target ast.Expression, env *object.Env
 		// 检查标识符是否为常量
 		sym, ok := env.Get(t.Name)
 		if !ok {
-			return &VariableError{
+			return &errors.VariableError{
 				Frame:    e.Frame,
 				Message:  fmt.Sprintf("undefined variable \"%s\".", t.Name),
 				PosStart: posStart,
@@ -1109,7 +1386,7 @@ func (e *Evaluator) checkIndexTargetConst(target ast.Expression, env *object.Env
 			}
 		}
 		if sym.IsConst {
-			return &VariableError{
+			return &errors.VariableError{
 				Frame:    e.Frame,
 				Message:  fmt.Sprintf("cannot redefine constant \"%s\".", t.Name),
 				PosStart: posStart,
@@ -1125,7 +1402,7 @@ func (e *Evaluator) checkIndexTargetConst(target ast.Expression, env *object.Env
 			return e.Err
 		}
 		if _, ok := t.Member.(*ast.IdentifierExpression); !ok {
-			return &TypeError{
+			return &errors.TypeError{
 				Frame:    e.Frame,
 				Message:  "member must be identifier.",
 				PosStart: posStart,
@@ -1138,7 +1415,7 @@ func (e *Evaluator) checkIndexTargetConst(target ast.Expression, env *object.Env
 			// 获取成员
 			ret, ok := namespace.Member.Get(member)
 			if !ok {
-				return &VariableError{
+				return &errors.VariableError{
 					Frame:    e.Frame,
 					Message:  fmt.Sprintf("undefined member \"%s\".", member),
 					PosStart: posStart,
@@ -1146,7 +1423,7 @@ func (e *Evaluator) checkIndexTargetConst(target ast.Expression, env *object.Env
 				}
 			}
 			if ret.IsConst {
-				return &VariableError{
+				return &errors.VariableError{
 					Frame:    e.Frame,
 					Message:  fmt.Sprintf("cannot redefine constant \"%s\".", member),
 					PosStart: posStart,
@@ -1155,7 +1432,7 @@ func (e *Evaluator) checkIndexTargetConst(target ast.Expression, env *object.Env
 			}
 			return nil
 		} else {
-			return &VariableError{
+			return &errors.VariableError{
 				Frame:    e.Frame,
 				Message:  "target must be namespace.",
 				PosStart: posStart,
@@ -1184,7 +1461,7 @@ func (e *Evaluator) checkIndexTargetConst(target ast.Expression, env *object.Env
 //	error - 可能出现的错误
 func (e *Evaluator) assign(lvalue ast.Expression, env *object.Environment, posStart, posEnd *util.Pos, newValue object.Object, callback func(current object.Object) object.Object) (object.Object, error) {
 	switch lval := lvalue.(type) {
-	case *ast.IdentifierExpression, *ast.NamespaceAccessExpression:
+	case *ast.IdentifierExpression, *ast.NamespaceAccessExpression, *ast.MemberAccessExpression:
 		sym, err := e.getSymbol(lval, env, posStart, posEnd)
 		if err != nil {
 			return nil, err
@@ -1195,8 +1472,10 @@ func (e *Evaluator) assign(lvalue ast.Expression, env *object.Environment, posSt
 				varName = id.Name
 			} else if ns, ok := lval.(*ast.NamespaceAccessExpression); ok {
 				varName = ns.Member.(*ast.IdentifierExpression).Name
+			} else if ma, ok := lval.(*ast.MemberAccessExpression); ok {
+				varName = ma.Member.(*ast.IdentifierExpression).Name
 			}
-			return nil, &VariableError{
+			return nil, &errors.VariableError{
 				Frame:    e.Frame,
 				Message:  fmt.Sprintf("cannot redefine constant \"%s\".", varName),
 				PosStart: posStart,
@@ -1230,6 +1509,14 @@ func (e *Evaluator) assign(lvalue ast.Expression, env *object.Environment, posSt
 			if namespace, ok := tar.(*object.Namespace); ok {
 				namespace.Member.Set(sym.Name, newSym)
 			}
+		} else if ma, ok := lval.(*ast.MemberAccessExpression); ok {
+			tar := e.Eval(ma.Target, env)
+			if e.Err != nil {
+				return nil, e.Err
+			}
+			if module, ok := tar.(*object.Module); ok {
+				module.Env.Set(sym.Name, newSym)
+			}
 		}
 
 		return result, nil
@@ -1251,7 +1538,7 @@ func (e *Evaluator) assign(lvalue ast.Expression, env *object.Environment, posSt
 		}
 
 		if _, ok := index.(*object.Int); !ok {
-			return nil, &TypeError{
+			return nil, &errors.TypeError{
 				Frame:    e.Frame,
 				Message:  "index must be integer.",
 				PosStart: posStart,
@@ -1261,7 +1548,7 @@ func (e *Evaluator) assign(lvalue ast.Expression, env *object.Environment, posSt
 
 		idxable, ok := target.(indexable)
 		if !ok {
-			return nil, &TypeError{
+			return nil, &errors.TypeError{
 				Frame:    e.Frame,
 				Message:  "index expression not supported for this type.",
 				PosStart: posStart,
@@ -1291,7 +1578,7 @@ func (e *Evaluator) assign(lvalue ast.Expression, env *object.Environment, posSt
 		return result, nil
 
 	default:
-		return nil, &TypeError{
+		return nil, &errors.TypeError{
 			Frame:    e.Frame,
 			Message:  "invalid variable name type.",
 			PosStart: posStart,
@@ -1318,7 +1605,7 @@ func (e *Evaluator) assign(lvalue ast.Expression, env *object.Environment, posSt
 //   - 尝试将变量重新声明为常量时返回错误
 func (e *Evaluator) evalVarAssignmentExpression(varAssignment *ast.VarAssignmentExpression, env *object.Environment) object.Object {
 	switch name := varAssignment.Name.(type) {
-	case *ast.IdentifierExpression, *ast.NamespaceAccessExpression, *ast.IndexExpression:
+	case *ast.IdentifierExpression, *ast.NamespaceAccessExpression, *ast.IndexExpression, *ast.MemberAccessExpression:
 		value := e.Eval(varAssignment.Value, env)
 		if e.Err != nil {
 			return nil
@@ -1335,7 +1622,7 @@ func (e *Evaluator) evalVarAssignmentExpression(varAssignment *ast.VarAssignment
 			return nil
 		}
 		if value.Type() != "List" {
-			e.Err = &TypeError{
+			e.Err = &errors.TypeError{
 				Frame:    e.Frame,
 				Message:  "the right-hand side of destructuring assignment must be a list expression.",
 				PosStart: varAssignment.PosStart,
@@ -1345,7 +1632,7 @@ func (e *Evaluator) evalVarAssignmentExpression(varAssignment *ast.VarAssignment
 		}
 		vars := varAssignment.Name.(*ast.ListExpression).Value
 		if len(vars) != len(value.(*object.List).Elements) {
-			e.Err = &TypeError{
+			e.Err = &errors.TypeError{
 				Frame:    e.Frame,
 				Message:  "the number of variables must match the number of elements in the list expression.",
 				PosStart: varAssignment.PosStart,
@@ -1362,7 +1649,7 @@ func (e *Evaluator) evalVarAssignmentExpression(varAssignment *ast.VarAssignment
 		}
 		return value
 	default:
-		e.Err = &TypeError{
+		e.Err = &errors.TypeError{
 			Frame:    e.Frame,
 			Message:  "invalid variable name type.",
 			PosStart: varAssignment.PosStart,
@@ -1431,7 +1718,7 @@ func (e *Evaluator) evalCompoundAssignmentExpression(compoundAssignmentExpressio
 //
 // 错误处理:
 //
-//	若运算符不支持，设置OperationError并返回nil
+//	若运算符不支持，设置errors.OperationError并返回nil
 func (e *Evaluator) evalPrefixExpression(prefixExpression *ast.PrefixExpression, env *object.Environment) object.Object {
 	right := e.Eval(prefixExpression.Value, env)
 	if e.Err != nil {
@@ -1468,7 +1755,7 @@ func (e *Evaluator) evalPrefixOperator(prefixExpression *ast.PrefixExpression, r
 		}
 		return val
 	default:
-		e.Err = &object.OperationError{
+		e.Err = &errors.OperationError{
 			Message:  fmt.Sprintf("invalid operation \"%s\".", prefixExpression.Operator.Type),
 			PosStart: prefixExpression.PosStart,
 			PosEnd:   prefixExpression.PosEnd,
@@ -1491,7 +1778,7 @@ func (e *Evaluator) evalPrefixOperator(prefixExpression *ast.PrefixExpression, r
 //
 // 错误处理:
 //
-//	若变量是常量，设置VariableError并返回nil
+//	若变量是常量，设置errors.VariableError并返回nil
 func (e *Evaluator) evalPrefixUnaryIncDecExpression(prefixUnaryIncDecExpression *ast.PrefixUnaryIncDecExpression, env *object.Environment) object.Object {
 	var operator *lexer.Token
 	if prefixUnaryIncDecExpression.Operator.Type == lexer.INCREMENT {
@@ -1541,7 +1828,7 @@ func (e *Evaluator) evalPrefixUnaryIncDecExpression(prefixUnaryIncDecExpression 
 //
 // 错误处理:
 //
-//	若变量是常量，设置VariableError并返回nil
+//	若变量是常量，设置errors.VariableError并返回nil
 func (e *Evaluator) evalPostfixUnaryIncDecExpression(postfixUnaryIncDecExpression *ast.PostfixUnaryIncDecExpression, env *object.Environment) object.Object {
 	var operator *lexer.Token
 	if postfixUnaryIncDecExpression.Operator.Type == lexer.INCREMENT {
@@ -1603,7 +1890,7 @@ func (e *Evaluator) evalPostfixUnaryIncDecExpression(postfixUnaryIncDecExpressio
 //
 // 错误处理:
 //
-//	若运算符不支持或操作数类型不匹配，设置OperationError并返回nil
+//	若运算符不支持或操作数类型不匹配，设置errors.OperationError并返回nil
 func (e *Evaluator) evalInfixExpression(infixExpression *ast.InfixExpression, env *object.Environment) object.Object {
 	left := e.Eval(infixExpression.Left, env)
 	if e.Err != nil {
@@ -1616,7 +1903,7 @@ func (e *Evaluator) evalInfixExpression(infixExpression *ast.InfixExpression, en
 				return &object.Bool{Value: false}
 			}
 		} else {
-			e.Err = &object.OperationError{
+			e.Err = &errors.OperationError{
 				Frame:    e.Frame,
 				Message:  "invalid operation \"&&\".",
 				PosStart: infixExpression.PosStart,
@@ -1632,7 +1919,7 @@ func (e *Evaluator) evalInfixExpression(infixExpression *ast.InfixExpression, en
 				return &object.Bool{Value: true}
 			}
 		} else {
-			e.Err = &object.OperationError{
+			e.Err = &errors.OperationError{
 				Frame:    e.Frame,
 				Message:  "invalid operation \"||\".",
 				PosStart: infixExpression.PosStart,
@@ -1782,7 +2069,7 @@ func (e *Evaluator) evalInfixOperator(infixExpression *ast.InfixExpression, left
 		}
 		return val
 	default:
-		e.Err = &object.OperationError{
+		e.Err = &errors.OperationError{
 			Message:  fmt.Sprintf("invalid operation \"%s\".", infixExpression.Operator.Type),
 			PosStart: infixExpression.PosStart,
 			PosEnd:   infixExpression.PosEnd,
@@ -1891,7 +2178,7 @@ func (e *Evaluator) evalIfExpression(ifExpression *ast.IfExpression, env *object
 		return nil
 	}
 	if _, ok := condition.(*object.Bool); !ok {
-		e.Err = &TypeError{
+		e.Err = &errors.TypeError{
 			Frame:    e.Frame,
 			Message:  "non-bool condition in if expression.",
 			PosStart: ifExpression.PosStart,
@@ -1941,7 +2228,14 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 				break
 			}
 		}
-
+		// 检查是否有解包参数
+		hasUnpack := false
+		for _, unpack := range callExpression.IsUnpack {
+			if unpack {
+				hasUnpack = true
+				break
+			}
+		}
 		// 计算默认参数数量
 		defaultLen := 0
 		for _, param := range fn.Parameter {
@@ -1949,6 +2243,7 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 				defaultLen++
 			}
 		}
+
 		// 计算传入参数数量
 		argLen := 0
 		for _, arg := range callExpression.Argument {
@@ -1969,50 +2264,52 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 			max = -1
 		}
 
-		// 参数数量不匹配
-		if max == -1 {
-			// 有可变参数，只检查最小参数数
-			if argLen < least {
-				e.Err = &ArgumentError{
-					Frame:    e.Frame,
-					Message:  fmt.Sprintf("expected at least %d parameters, got %d.", least, argLen),
-					PosStart: callExpression.PosStart,
-					PosEnd:   callExpression.PosEnd,
+		// 参数数量不匹配检查
+		if !hasUnpack {
+			if max == -1 {
+				// 有可变参数，只检查最小参数数
+				if argLen < least {
+					e.Err = &errors.ArgumentError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("expected at least %d parameters, got %d.", least, argLen),
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+					return nil
 				}
-				return nil
-			}
-		} else {
-			// 没有可变参数，检查参数数量是否在范围内
-			if !(least <= argLen && argLen <= max) {
-				if defaultLen == 0 {
-					e.Err = &ArgumentError{
-						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected %d parameters, got %d.", len(fn.Parameter), argLen),
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
+			} else {
+				// 没有可变参数，检查参数数量是否在范围内
+				if !(least <= argLen && argLen <= max) {
+					if defaultLen == 0 {
+						e.Err = &errors.ArgumentError{
+							Frame:    e.Frame,
+							Message:  fmt.Sprintf("expected %d parameters, got %d.", len(fn.Parameter), argLen),
+							PosStart: callExpression.PosStart,
+							PosEnd:   callExpression.PosEnd,
+						}
+					} else if least == 1 {
+						e.Err = &errors.ArgumentError{
+							Frame:    e.Frame,
+							Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", len(fn.Parameter), argLen),
+							PosStart: callExpression.PosStart,
+							PosEnd:   callExpression.PosEnd,
+						}
+					} else {
+						e.Err = &errors.ArgumentError{
+							Frame:    e.Frame,
+							Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, len(fn.Parameter), argLen),
+							PosStart: callExpression.PosStart,
+							PosEnd:   callExpression.PosEnd,
+						}
 					}
-				} else if least == 1 {
-					e.Err = &ArgumentError{
-						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", len(fn.Parameter), argLen),
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
-					}
-				} else {
-					e.Err = &ArgumentError{
-						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, len(fn.Parameter), argLen),
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
-					}
+					return nil
 				}
-				return nil
 			}
 		}
 
 		// 计算实际参数值
 		var argument []object.Object
-		for _, arg := range callExpression.Argument {
+		for i, arg := range callExpression.Argument {
 			if arg == nil {
 				// 如果参数为nil，用默认值填充
 				if len(argument) < len(fn.Parameter) {
@@ -2028,7 +2325,22 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 			if e.Err != nil {
 				return nil
 			}
-			argument = append(argument, a)
+			if callExpression.IsUnpack[i] {
+				// 如果是解包参数，将参数展开为多个参数
+				if unpackObj, ok := a.(*object.List); ok {
+					argument = append(argument, unpackObj.Elements...)
+				} else {
+					e.Err = &errors.TypeError{
+						Frame:    e.Frame,
+						Message:  "unpack parameter must be a list expression.",
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+					return nil
+				}
+			} else {
+				argument = append(argument, a)
+			}
 		}
 
 		// 有默认参数未被赋值时，用默认值填充
@@ -2042,6 +2354,46 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 				return nil
 			}
 			argument = append(argument, defaultValue)
+		}
+
+		// 如果有解包参数，检查参数数量是否匹配
+		if hasUnpack {
+			if max == -1 {
+				// 有可变参数，只检查最小参数数
+				if len(argument) < least {
+					e.Err = &errors.ArgumentError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("expected at least %d parameters, got %d.", least, len(argument)),
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+					return nil
+				}
+			} else if !(least <= len(argument) && len(argument) <= max) {
+				if defaultLen == 0 {
+					e.Err = &errors.ArgumentError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("expected %d parameters, got %d.", len(fn.Parameter), len(argument)),
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+				} else if least == 1 {
+					e.Err = &errors.ArgumentError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", len(fn.Parameter), len(argument)),
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+				} else {
+					e.Err = &errors.ArgumentError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, len(fn.Parameter), len(argument)),
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+				}
+				return nil
+			}
 		}
 
 		// 创建函数环境
@@ -2064,7 +2416,7 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 				variadicArgs := make([]object.Object, 0)
 				for j := i; j < len(argument); j++ {
 					if j != i && argument[j].Type() != variadicArgs[0].Type() {
-						e.Err = &TypeError{
+						e.Err = &errors.TypeError{
 							Frame:    e.Frame,
 							Message:  "all variadic arguments must be of the same type.",
 							PosStart: callExpression.PosStart,
@@ -2111,6 +2463,15 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 		// 检查是否有可变参数
 		hasVariadic := fn.HaveVariadic
 
+		// 检查是否有解包参数
+		hasUnpack := false
+		for _, unpack := range callExpression.IsUnpack {
+			if unpack {
+				hasUnpack = true
+				break
+			}
+		}
+
 		// 计算默认参数数量
 		defaultLen := 0
 		for _, defaultValue := range fn.DefaultValue {
@@ -2138,58 +2499,56 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 			max = -1
 		}
 
-		// 参数数量不匹配
-		if max == -1 {
-			// 有可变参数，只检查最小参数数
-			if argLen < least {
-				e.Err = &ArgumentError{
-					Frame:    e.Frame,
-					Message:  fmt.Sprintf("expected at least %d parameters, got %d.", least, argLen),
-					PosStart: callExpression.PosStart,
-					PosEnd:   callExpression.PosEnd,
+		// 参数数量不匹配检查（有解包参数时跳过）
+		if !hasUnpack {
+			if max == -1 {
+				// 有可变参数，只检查最小参数数
+				if argLen < least {
+					e.Err = &errors.ArgumentError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("expected at least %d parameters, got %d.", least, argLen),
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+					return nil
 				}
-				return nil
-			}
-		} else {
-			// 没有可变参数，检查参数数量是否在范围内
-			if !(least <= argLen && argLen <= max) {
-				if defaultLen == 0 {
-					e.Err = &ArgumentError{
-						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected %d parameters, got %d.", len(fn.Parameter), argLen),
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
+			} else {
+				// 没有可变参数，检查参数数量是否在范围内
+				if !(least <= argLen && argLen <= max) {
+					if defaultLen == 0 {
+						e.Err = &errors.ArgumentError{
+							Frame:    e.Frame,
+							Message:  fmt.Sprintf("expected %d parameters, got %d.", len(fn.Parameter), argLen),
+							PosStart: callExpression.PosStart,
+							PosEnd:   callExpression.PosEnd,
+						}
+					} else if least == 1 {
+						e.Err = &errors.ArgumentError{
+							Frame:    e.Frame,
+							Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", len(fn.Parameter), argLen),
+							PosStart: callExpression.PosStart,
+							PosEnd:   callExpression.PosEnd,
+						}
+					} else {
+						e.Err = &errors.ArgumentError{
+							Frame:    e.Frame,
+							Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, len(fn.Parameter), argLen),
+							PosStart: callExpression.PosStart,
+							PosEnd:   callExpression.PosEnd,
+						}
 					}
-				} else if least == 1 {
-					e.Err = &ArgumentError{
-						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", len(fn.Parameter), argLen),
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
-					}
-				} else {
-					e.Err = &ArgumentError{
-						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, len(fn.Parameter), argLen),
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
-					}
+					return nil
 				}
-				return nil
 			}
 		}
 
 		// 评估参数表达式
 		var argument []object.Object
-		for _, arg := range callExpression.Argument {
+		for i, arg := range callExpression.Argument {
 			// 如果参数为nil，用默认值填充
 			if arg == nil {
 				if len(argument) < len(fn.Parameter) {
-					defaultValue := e.Eval(fn.DefaultValue[len(argument)], env)
-					if e.Err != nil {
-						return nil
-					}
-					argument = append(argument, defaultValue)
+					argument = append(argument, fn.DefaultValue[len(argument)])
 				}
 				continue
 			}
@@ -2197,7 +2556,22 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 			if e.Err != nil {
 				return nil
 			}
-			argument = append(argument, a)
+			if callExpression.IsUnpack[i] {
+				// 如果是解包参数，将参数展开为多个参数
+				if unpackObj, ok := a.(*object.List); ok {
+					argument = append(argument, unpackObj.Elements...)
+				} else {
+					e.Err = &errors.TypeError{
+						Frame:    e.Frame,
+						Message:  "unpack parameter must be a list expression.",
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+					return nil
+				}
+			} else {
+				argument = append(argument, a)
+			}
 		}
 
 		// 有默认参数未被赋值时，用默认值填充
@@ -2206,17 +2580,57 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 			if hasVariadic && i == len(fn.Parameter)-1 {
 				break
 			}
-			defaultValue := e.Eval(fn.DefaultValue[i], env)
-			if e.Err != nil {
+			argument = append(argument, fn.DefaultValue[i])
+		}
+
+		// 如果有解包参数，检查参数数量是否匹配
+		if hasUnpack {
+			actualArgLen := len(argument)
+
+			if max == -1 {
+				// 有可变参数，只检查最小参数数
+				if actualArgLen < least {
+					e.Err = &errors.ArgumentError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("expected at least %d parameters, got %d.", least, actualArgLen),
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+					return nil
+				}
+			} else if !(least <= actualArgLen && actualArgLen <= max) {
+				// 没有可变参数，检查参数数量是否在范围内
+				if defaultLen == 0 {
+					e.Err = &errors.ArgumentError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("expected %d parameters, got %d.", len(fn.Parameter), actualArgLen),
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+				} else if least == 1 {
+					e.Err = &errors.ArgumentError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", len(fn.Parameter), actualArgLen),
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+				} else {
+					e.Err = &errors.ArgumentError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, len(fn.Parameter), actualArgLen),
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+				}
 				return nil
 			}
-			argument = append(argument, defaultValue)
 		}
+
 		// 判断可变参数传入的类型是否相同
 		if hasVariadic {
 			for i := len(fn.Parameter) - 1; i < len(argument); i++ {
 				if i != len(fn.Parameter)-1 && argument[i].Type() != argument[i-1].Type() {
-					e.Err = &TypeError{
+					e.Err = &errors.TypeError{
 						Frame:    e.Frame,
 						Message:  "all variadic arguments must be of the same type.",
 						PosStart: callExpression.PosStart,
@@ -2243,7 +2657,7 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 		return val
 	default:
 		// 调用非函数
-		e.Err = &TypeError{
+		e.Err = &errors.TypeError{
 			Frame:    e.Frame,
 			Message:  "the value is not a function and cannot be called.",
 			PosStart: callExpression.PosStart,
@@ -2274,7 +2688,7 @@ func (e *Evaluator) evalRangeExpression(rangeExpression *ast.RangeExpression, en
 		return nil
 	}
 	if start.Type() != "Int" || end.Type() != "Int" {
-		e.Err = &TypeError{
+		e.Err = &errors.TypeError{
 			Frame:    e.Frame,
 			Message:  "the start and end of the range must be integers.",
 			PosStart: rangeExpression.PosStart,
@@ -2301,7 +2715,7 @@ func (e *Evaluator) evalContainsExpression(containsExpression *ast.ContainsExpre
 		return nil
 	}
 	if _, ok := target.(indexable); !ok {
-		e.Err = &TypeError{
+		e.Err = &errors.TypeError{
 			Frame:    e.Frame,
 			Message:  fmt.Sprintf("the type \"%s\" is not supported for contains operation.", target.Type()),
 			PosStart: containsExpression.PosStart,
@@ -2325,7 +2739,7 @@ func (e *Evaluator) evalContainsExpression(containsExpression *ast.ContainsExpre
 	case *object.String:
 		str, ok := query.(*object.String)
 		if !ok {
-			e.Err = &TypeError{
+			e.Err = &errors.TypeError{
 				Frame:    e.Frame,
 				Message:  "the query must be a string.",
 				PosStart: containsExpression.PosStart,

@@ -1,6 +1,4 @@
-// 用于标识词法分析阶段的令牌错误
-
-package lexer
+package errors
 
 import (
 	"strconv"
@@ -46,12 +44,12 @@ type SyntaxError struct {
 	PosEnd   *util.Pos // 错误结束位置
 }
 
-// Error 生成格式化的非法令牌错误信息
+// Error 生成格式化的语法错误信息
 // 包含错误位置、源代码片段和错误类型标识
 //
 // 返回值:
 //
-//	string - 格式化的非法令牌错误信息
+//	string - 格式化的语法错误信息
 func (e *SyntaxError) Error() string {
 	var linePos string
 	if e.PosStart.Row == e.PosEnd.Row {

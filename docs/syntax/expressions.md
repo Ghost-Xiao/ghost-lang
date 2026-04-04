@@ -196,7 +196,7 @@ const [x, y, z] = [10, 20, 30];
 **语法定义：**
 ```
 VarAssignmentExpression ::= LvalueList "=" Expression
-LvalueList ::= Identifier | IndexExpression | NamespaceAccessExpression | ListExpression
+LvalueList ::= Identifier | IndexExpression | NamespaceAccessExpression | MemberAccessExpression | ListExpression
 ```
 
 **示例：**
@@ -206,13 +206,16 @@ a[0] = 40;
 [a, b] = [1, 2];
 [x, y, z] = [10, 20, 30];
 [l[0], b, A::a] = [4, 5, 6];
+
+import math;
+math.PI = 3.14;
 ```
 
 **注意事项：**
 - 当使用列表表达式作为左值时，进行解构赋值
 - 解构赋值要求右侧必须是列表表达式
 - 左右两侧的元素数量必须一致
-- 支持索引表达式和命名空间访问表达式作为左值
+- 支持索引表达式、命名空间访问表达式和成员访问表达式作为左值
 
 ## 复合赋值表达式(CompoundAssignmentExpression)
 用于复合赋值操作的表达式。
@@ -321,6 +324,31 @@ len([1, 2, 3]);
 - 调用函数时，参数列表中的空参数（逗号分隔，空参数代表使用默认值）会被忽略。
 - 调用函数时，如果参数数量少于函数定义的参数数量，未被赋值的参数会使用默认值。
 
+### 解包参数(Unpack Argument)
+用于将列表中的元素解包为多个参数传递给函数。
+
+**语法定义：**
+```
+UnpackArgument ::= Expression "..."
+```
+
+**示例：**
+```ghost
+import "math";
+var args = [1, 3, 5, 7, 9];
+math.sum(args...);  // 等价于 math.sum(1, 3, 5, 7, 9)
+
+import "fmt";
+fmt.print("Hello", ["World", "!"]...);  // 等价于 fmt.print("Hello", "World", "!")
+```
+
+**注意事项：**
+- 解包参数只能用于函数调用中
+- 解包参数后面必须跟随一个列表表达式
+- 解包参数会将列表中的每个元素作为独立的参数传递给函数
+- 解包参数支持与普通参数混合使用
+- 解包参数支持内置函数和自定义函数
+
 ## 索引表达式(IndexExpression)
 表示列表索引访问的表达式节点。
 
@@ -352,6 +380,25 @@ Utils::add;
 **注意事项：**
 - 命名空间访问表达式用于访问命名空间中定义的变量或函数
 - 命名空间访问表达式可以作为左值使用，用于修改命名空间中的变量
+
+## 成员访问表达式(MemberAccessExpression)
+用于访问模块中的成员的表达式节点。
+
+**语法定义：**
+```
+MemberAccessExpression ::= Identifier "." Identifier
+```
+
+**示例：**
+```ghost
+import math;
+math.PI;
+math.sqrt(2);
+```
+
+**注意事项：**
+- 成员访问表达式用于访问导入模块中定义的变量或函数
+- 成员访问表达式可以作为左值使用，用于修改模块中的变量
 
 ## 范围表达式(RangeExpression)
 用于创建整数范围的表达式节点。

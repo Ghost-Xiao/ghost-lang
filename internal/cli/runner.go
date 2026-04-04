@@ -98,7 +98,7 @@ func RunFile(fileName string) {
 		PosEnd:   nil,
 		Parent:   nil,
 	}
-	e := evaluator.NewEvaluator(f)
+	e := evaluator.NewEvaluator(f, map[string]int{})
 	e.Eval(program, env)
 	if e.Err != nil {
 		printError(e.Err)

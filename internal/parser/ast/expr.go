@@ -554,6 +554,7 @@ func (ie *IfExpression) IsLvalue() bool {
 type CallExpression struct {
 	Function Expression   // 函数
 	Argument []Expression // 参数
+	IsUnpack []bool       // 是否解包
 	PosStart *util.Pos    // 表达式的起始位置
 	PosEnd   *util.Pos    // 表达式的结束位置
 }
@@ -571,6 +572,9 @@ func (ce *CallExpression) String() string {
 	for i, a := range ce.Argument {
 		if a != nil {
 			sb.WriteString(a.String())
+		}
+		if ce.IsUnpack[i] {
+			sb.WriteString("...")
 		}
 		if i != len(ce.Argument)-1 {
 			sb.WriteString(", ")
@@ -715,4 +719,36 @@ func (re *RangeExpression) Expression() {}
 // IsLvalue 方法，返回是否为左值
 func (re *RangeExpression) IsLvalue() bool {
 	return false
+}
+
+// MemberAccessExpression 是成员访问表达式节点
+// 表示对成员的访问，如a.b、c.d等
+type MemberAccessExpression struct {
+	Target   Expression // 被访问的目标
+	Member   Expression // 成员名
+	PosStart *util.Pos  // 表达式的起始位置
+	PosEnd   *util.Pos  // 表达式的结束位置
+}
+
+// String 返回成员访问表达式的字符串表示
+// 格式为：<target>.<member>
+//
+// 返回值:
+//
+//	成员访问表达式的字符串表示
+func (re *MemberAccessExpression) String() string {
+	var sb strings.Builder
+	sb.WriteString(re.Target.String())
+	sb.WriteString(".")
+	sb.WriteString(re.Member.String())
+	return sb.String()
+}
+
+// Expression 是标记方法，用于类型判断
+// 实现Expression接口
+func (re *MemberAccessExpression) Expression() {}
+
+// IsLvalue 方法，返回是否为左值
+func (re *MemberAccessExpression) IsLvalue() bool {
+	return true
 }

@@ -299,3 +299,29 @@ func (fi *ForEachStatement) String() string {
 // Statement 是标记方法，用于类型判断
 // 实现Statement接口
 func (fi *ForEachStatement) Statement() {}
+
+// ImportStatement 是import语句节点
+// 用于导入其他模块
+type ImportStatement struct {
+	Module   Expression // 导入的模块名
+	PosStart *util.Pos  // 语句的起始位置
+	PosEnd   *util.Pos  // 语句的结束位置
+}
+
+// String 返回import语句的字符串表示
+// 格式为：import <module>
+//
+// 返回值:
+//
+//	import语句的字符串表示
+func (is *ImportStatement) String() string {
+	var sb strings.Builder
+	sb.WriteString("import ")
+	sb.WriteString(is.Module.String())
+	return sb.String()
+}
+
+// Statement 是标记方法，用于类型判断
+// 实现Statement接口
+func (is *ImportStatement) Statement() {
+}

@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/Ghost-Xiao/ghost-lang/internal/errors"
 	"github.com/Ghost-Xiao/ghost-lang/internal/lexer"
 	"github.com/Ghost-Xiao/ghost-lang/internal/parser/ast"
 	"github.com/Ghost-Xiao/ghost-lang/internal/util"
@@ -569,6 +570,45 @@ func TestParser_ParseForEachStatement(t *testing.T) {
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
 			expr := program.Statements[0].(*ast.ForEachStatement)
+
+			if p.Err != nil {
+				t.Errorf("err = %+v, expected nil", p.Err)
+			}
+
+			if !reflect.DeepEqual(expr, tt.expected) {
+				t.Errorf("expected %+v, got %+v", tt.expected, expr)
+			}
+		})
+	}
+}
+
+func TestParser_ParseImportStatement(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected *ast.ImportStatement
+	}{
+		{
+			name:  "Import Statement",
+			input: "import \"std\";",
+			expected: &ast.ImportStatement{
+				Module: &ast.StringExpression{
+					Value:    "std",
+					PosStart: util.NewPos(1, 8, 7, "<test>", "import \"std\";"),
+					PosEnd:   util.NewPos(1, 13, 12, "<test>", "import \"std\";"),
+				},
+				PosStart: util.NewPos(1, 1, 0, "<test>", "import \"std\";"),
+				PosEnd:   util.NewPos(1, 13, 12, "<test>", "import \"std\";"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.NewLexer("<test>", tt.input)
+			p, _ := NewParser(l)
+			program := p.ParseProgram()
+			expr := program.Statements[0].(*ast.ImportStatement)
 
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
@@ -1934,6 +1974,7 @@ func TestParser_ParseCallExpression(t *testing.T) {
 					PosEnd:   util.NewPos(1, 2, 1, "<test>", "f();"),
 				},
 				Argument: make([]ast.Expression, 0),
+				IsUnpack: make([]bool, 0),
 				PosStart: util.NewPos(1, 1, 0, "<test>", "f();"),
 				PosEnd:   util.NewPos(1, 4, 3, "<test>", "f();"),
 			},
@@ -1960,6 +2001,7 @@ func TestParser_ParseCallExpression(t *testing.T) {
 						PosEnd:   util.NewPos(1, 9, 8, "<test>", "f(1, , 2);"),
 					},
 				},
+				IsUnpack: []bool{false, false, false},
 				PosStart: util.NewPos(1, 1, 0, "<test>", "f(1, , 2);"),
 				PosEnd:   util.NewPos(1, 10, 9, "<test>", "f(1, , 2);"),
 			},
@@ -2336,6 +2378,50 @@ func TestParser_ParseContainsExpression(t *testing.T) {
 	}
 }
 
+func TestParser_ParseMemberAccessExpression(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected *ast.MemberAccessExpression
+	}{
+		{
+			name:  "Member Access Expression",
+			input: "a.b;",
+			expected: &ast.MemberAccessExpression{
+				Target: &ast.IdentifierExpression{
+					Name:     "a",
+					PosStart: util.NewPos(1, 1, 0, "<test>", "a.b;"),
+					PosEnd:   util.NewPos(1, 2, 1, "<test>", "a.b;"),
+				},
+				Member: &ast.IdentifierExpression{
+					Name:     "b",
+					PosStart: util.NewPos(1, 3, 2, "<test>", "a.b;"),
+					PosEnd:   util.NewPos(1, 4, 3, "<test>", "a.b;"),
+				},
+				PosStart: util.NewPos(1, 1, 0, "<test>", "a.b;"),
+				PosEnd:   util.NewPos(1, 4, 3, "<test>", "a.b;"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.NewLexer("<test>", tt.input)
+			p, _ := NewParser(l)
+			program := p.ParseProgram()
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.MemberAccessExpression)
+
+			if p.Err != nil {
+				t.Errorf("err = %+v, expected nil", p.Err)
+			}
+
+			if !reflect.DeepEqual(expr, tt.expected) {
+				t.Errorf("expected %+v, got %+v", tt.expected, expr)
+			}
+		})
+	}
+}
+
 func TestParser_Errors(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -2345,7 +2431,7 @@ func TestParser_Errors(t *testing.T) {
 		{
 			name:  "Invalid Prefix Expression",
 			input: "*1;",
-			err: &SyntaxError{
+			err: &errors.SyntaxError{
 				Message:  "unexpected \"ASTERISK\".",
 				PosStart: util.NewPos(1, 1, 0, "<test>", "*1;"),
 				PosEnd:   util.NewPos(1, 2, 1, "<test>", "*1;"),

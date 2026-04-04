@@ -1,7 +1,3 @@
-// 定义了GoGhost语言词法分析器使用的令牌类型和相关操作
-// 包含令牌结构、预定义令牌类型常量、关键字映射和操作符映射
-// 提供令牌复制、字符串转换和标识符查找等功能，是语法分析的基础
-
 package lexer
 
 import "github.com/Ghost-Xiao/ghost-lang/internal/util"
@@ -60,6 +56,7 @@ const (
 	IN        = "IN"        // in关键字，用于范围循环
 	STEP      = "STEP"      // step关键字，步长
 	CONTAINS  = "CONTAINS"  // contains关键字，用于检查是否存在包含关系
+	IMPORT    = "IMPORT"    // import关键字，用于导入其他模块
 
 	// 运算符令牌
 	PLUS         = "PLUS"         // 加号运算符(+)
@@ -133,6 +130,7 @@ var Keywords = map[string]string{
 	"in":        IN,        // in关键字
 	"step":      STEP,      // 步长关键字
 	"contains":  CONTAINS,  // contains关键字
+	"import":    IMPORT,    // import关键字
 }
 
 // Operators 操作符映射表，将字符串操作符映射到对应的令牌类型

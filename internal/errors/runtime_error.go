@@ -1,4 +1,4 @@
-package evaluator
+package errors
 
 import (
 	"strconv"
@@ -7,23 +7,23 @@ import (
 	"github.com/Ghost-Xiao/ghost-lang/internal/util"
 )
 
-// VariableError 变量错误类型，表示变量相关的运行时错误
-// 例如访问未定义变量、重复声明常量、类型不匹配等
+// OperationError 操作错误类型，表示执行不支持的操作时发生的错误
+// 例如对不兼容类型执行运算、调用未定义的方法等
 // 拥有完整的错误跟踪和格式化能力
-type VariableError struct {
+type OperationError struct {
 	Frame    *frame.Frame // 错误发生时的调用栈
 	Message  string       // 错误描述文本
 	PosStart *util.Pos    // 错误起始位置
 	PosEnd   *util.Pos    // 错误结束位置
 }
 
-// Error 生成格式化的变量错误信息字符串
-// 前缀为"Variable Error"
+// Error 生成格式化的操作错误信息字符串
+// 前缀为"Operation Error"
 //
 // 返回值:
 //
-//	string - 格式化的变量错误信息，格式同基础Error但错误类型为"Variable Error"
-func (e *VariableError) Error() string {
+//	string - 格式化的操作错误信息，格式同基础Error但错误类型为"Operation Error"
+func (e *OperationError) Error() string {
 	res := ""
 	posStart := e.PosStart
 	posEnd := e.PosEnd
@@ -45,7 +45,52 @@ func (e *VariableError) Error() string {
 		currFrame = currFrame.Parent
 	}
 	res = "Traceback:\n" + res
-	res += "Variable Error"
+	res += "Operation Error"
+	if e.Message != "" {
+		res += ": " + e.Message
+	}
+	return res
+}
+
+// MathError 数学错误类型，表示数学运算相关的错误
+// 例如除以零、数值溢出、无效的数学函数参数等
+// 拥有完整的错误跟踪和格式化能力
+type MathError struct {
+	Frame    *frame.Frame // 错误发生时的调用栈
+	Message  string       // 错误描述文本
+	PosStart *util.Pos    // 错误起始位置
+	PosEnd   *util.Pos    // 错误结束位置
+}
+
+// Error 生成格式化的数学错误信息字符串
+// 前缀为"Math Error"
+//
+// 返回值:
+//
+//	string - 格式化的数学错误信息，格式同基础Error但错误类型为"Math Error"
+func (e *MathError) Error() string {
+	res := ""
+	posStart := e.PosStart
+	posEnd := e.PosEnd
+	currFrame := e.Frame
+	// 构建调用栈跟踪信息
+	for currFrame != nil {
+		var linePos string
+		if posStart.Row == posEnd.Row {
+			linePos = "line " + strconv.Itoa(posStart.Row)
+		} else {
+			linePos = "lines " + strconv.Itoa(posStart.Row) + "-" + strconv.Itoa(posEnd.Row)
+		}
+		str := "    File " + posStart.File + ", " + linePos + ", in " + currFrame.FuncName + "\n"
+		// 添加代码位置指示箭头
+		str += util.StringsWithArrows(e.PosStart.Text, posStart, posEnd, true)
+		res = str + "\n" + res
+		posStart = currFrame.PosStart
+		posEnd = currFrame.PosEnd
+		currFrame = currFrame.Parent
+	}
+	res = "Traceback:\n" + res
+	res += "Math Error"
 	if e.Message != "" {
 		res += ": " + e.Message
 	}
@@ -97,23 +142,18 @@ func (e *TypeError) Error() string {
 	return res
 }
 
-// SyntaxError 语法错误类型，表示语法相关的运行时错误
-// 例如缺少括号等
+// IndexError 索引错误类型，表示索引越界等相关的运行时错误
 // 拥有完整的错误跟踪和格式化能力
-type SyntaxError struct {
+type IndexError struct {
 	Frame    *frame.Frame // 错误发生时的调用栈
 	Message  string       // 错误描述文本
 	PosStart *util.Pos    // 错误起始位置
 	PosEnd   *util.Pos    // 错误结束位置
 }
 
-// Error 生成格式化的语法错误信息字符串
-// 前缀为"Syntax Error"
-//
-// 返回值:
-//
-//	string - 格式化的变量错误信息，格式同基础Error但错误类型为"Syntax Error"
-func (e *SyntaxError) Error() string {
+// Error 生成格式化的索引错误信息字符串
+// 前缀为"Index Error"
+func (e *IndexError) Error() string {
 	res := ""
 	posStart := e.PosStart
 	posEnd := e.PosEnd
@@ -135,7 +175,52 @@ func (e *SyntaxError) Error() string {
 		currFrame = currFrame.Parent
 	}
 	res = "Traceback:\n" + res
-	res += "Syntax Error"
+	res += "Index Error"
+	if e.Message != "" {
+		res += ": " + e.Message
+	}
+	return res
+}
+
+// VariableError 变量错误类型，表示变量相关的运行时错误
+// 例如访问未定义变量、重复声明常量、类型不匹配等
+// 拥有完整的错误跟踪和格式化能力
+type VariableError struct {
+	Frame    *frame.Frame // 错误发生时的调用栈
+	Message  string       // 错误描述文本
+	PosStart *util.Pos    // 错误起始位置
+	PosEnd   *util.Pos    // 错误结束位置
+}
+
+// Error 生成格式化的变量错误信息字符串
+// 前缀为"Variable Error"
+//
+// 返回值:
+//
+//	string - 格式化的变量错误信息，格式同基础Error但错误类型为"Variable Error"
+func (e *VariableError) Error() string {
+	res := ""
+	posStart := e.PosStart
+	posEnd := e.PosEnd
+	currFrame := e.Frame
+	// 构建调用栈跟踪信息
+	for currFrame != nil {
+		var linePos string
+		if posStart.Row == posEnd.Row {
+			linePos = "line " + strconv.Itoa(posStart.Row)
+		} else {
+			linePos = "lines " + strconv.Itoa(posStart.Row) + "-" + strconv.Itoa(posEnd.Row)
+		}
+		str := "    File " + posStart.File + ", " + linePos + ", in " + currFrame.FuncName + "\n"
+		// 添加代码位置指示箭头
+		str += util.StringsWithArrows(e.PosStart.Text, posStart, posEnd, true)
+		res = str + "\n" + res
+		posStart = currFrame.PosStart
+		posEnd = currFrame.PosEnd
+		currFrame = currFrame.Parent
+	}
+	res = "Traceback:\n" + res
+	res += "Variable Error"
 	if e.Message != "" {
 		res += ": " + e.Message
 	}
@@ -181,6 +266,51 @@ func (e *ArgumentError) Error() string {
 	}
 	res = "Traceback:\n" + res
 	res += "Argument Error"
+	if e.Message != "" {
+		res += ": " + e.Message
+	}
+	return res
+}
+
+// ModuleError 模块错误类型，表示模块相关的运行时错误
+// 例如模块不存在或加载失败等
+// 拥有完整的错误跟踪和格式化能力
+type ModuleError struct {
+	Frame    *frame.Frame // 错误发生时的调用栈
+	Message  string       // 错误描述文本
+	PosStart *util.Pos    // 错误起始位置
+	PosEnd   *util.Pos    // 错误结束位置
+}
+
+// Error 生成格式化的模块错误信息字符串
+// 前缀为"Module Error"
+//
+// 返回值:
+//
+//	string - 格式化的模块错误信息，格式同基础Error但错误类型为"Module Error"
+func (e *ModuleError) Error() string {
+	res := ""
+	posStart := e.PosStart
+	posEnd := e.PosEnd
+	currFrame := e.Frame
+	// 构建调用栈跟踪信息
+	for currFrame != nil {
+		var linePos string
+		if posStart.Row == posEnd.Row {
+			linePos = "line " + strconv.Itoa(posStart.Row)
+		} else {
+			linePos = "lines " + strconv.Itoa(posStart.Row) + "-" + strconv.Itoa(posEnd.Row)
+		}
+		str := "    File " + posStart.File + ", " + linePos + ", in " + currFrame.FuncName + "\n"
+		// 添加代码位置指示箭头
+		str += util.StringsWithArrows(e.PosStart.Text, posStart, posEnd, true)
+		res = str + "\n" + res
+		posStart = currFrame.PosStart
+		posEnd = currFrame.PosEnd
+		currFrame = currFrame.Parent
+	}
+	res = "Traceback:\n" + res
+	res += "Module Error"
 	if e.Message != "" {
 		res += ": " + e.Message
 	}

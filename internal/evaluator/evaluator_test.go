@@ -5,8 +5,10 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/Ghost-Xiao/ghost-lang/internal/errors"
 	"github.com/Ghost-Xiao/ghost-lang/internal/frame"
 	"github.com/Ghost-Xiao/ghost-lang/internal/lexer"
+	"github.com/Ghost-Xiao/ghost-lang/internal/module"
 	"github.com/Ghost-Xiao/ghost-lang/internal/object"
 	"github.com/Ghost-Xiao/ghost-lang/internal/parser"
 	"github.com/Ghost-Xiao/ghost-lang/internal/parser/ast"
@@ -44,7 +46,7 @@ true;`,
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.Eval(program, env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -84,7 +86,7 @@ true;`,
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalProgram(program, env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -125,7 +127,7 @@ func TestEvaluator_VisitIntExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalIntExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.IntExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -166,7 +168,7 @@ func TestEvaluator_VisitFloatExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalFloatExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.FloatExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -214,7 +216,7 @@ func TestEvaluator_VisitBooleanExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalBooleanExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.BoolExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -253,7 +255,7 @@ func TestEvaluator_VisitNullExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalNullExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.NullExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -301,7 +303,7 @@ func TestEvaluator_VisitStringExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalStringExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.StringExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -404,7 +406,7 @@ func TestEvaluator_VisitListExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalListExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.ListExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -470,7 +472,7 @@ func TestEvaluator_VisitIdentifierExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalIdentifierExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.IdentifierExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -521,7 +523,7 @@ func TestEvaluator_VisitVarInitializationExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalVarInitializationExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.VarInitializationExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -618,7 +620,7 @@ func TestEvaluator_VisitVarAssignmentExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalVarAssignmentExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.VarAssignmentExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -681,7 +683,7 @@ func TestEvaluator_VisitCompoundAssignmentExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalCompoundAssignmentExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.CompoundAssignmentExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -746,7 +748,7 @@ func TestEvaluator_VisitPrefixUnaryIncDecExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalPrefixUnaryIncDecExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.PrefixUnaryIncDecExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -811,7 +813,7 @@ func TestEvaluator_VisitPostfixUnaryIncDecExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalPostfixUnaryIncDecExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.PostfixUnaryIncDecExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -852,7 +854,7 @@ func TestEvaluator_VisitPrefixExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalPrefixExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.PrefixExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -893,7 +895,7 @@ func TestEvaluator_VisitBlockExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalBlockExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.BlockExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -941,7 +943,7 @@ func TestEvaluator_VisitIfExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalIfExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.IfExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -1065,7 +1067,7 @@ func TestEvaluator_VisitCallExpression(t *testing.T) {
 								Value: int64(len(args[0].(*object.String).Value)),
 							}, nil
 						default:
-							return nil, &TypeError{
+							return nil, &errors.TypeError{
 								Frame: &frame.Frame{
 									FuncName: "<builtin \"len\">",
 									Parent:   f,
@@ -1126,7 +1128,7 @@ func TestEvaluator_VisitCallExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalCallExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.CallExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -1186,7 +1188,7 @@ func TestEvaluator_VisitIndexExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalIndexExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.IndexExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -1251,7 +1253,7 @@ func TestEvaluator_NamespaceAccessExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalNamespaceAccessExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.NamespaceAccessExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -1303,7 +1305,7 @@ func TestEvaluator_RangeExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalRangeExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.RangeExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
@@ -1345,8 +1347,59 @@ func TestEvaluator_ContainsExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := parser.NewParser(l)
 			program := p.ParseProgram()
-			e := NewEvaluator(f)
+			e := NewEvaluator(f, map[string]int{})
 			val := e.evalContainsExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.ContainsExpression), env)
+			if !reflect.DeepEqual(val, tt.excepted) {
+				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
+			}
+		})
+	}
+}
+
+func TestEvaluator_MemberAccessExpression(t *testing.T) {
+	f := &frame.Frame{
+		FuncName: "<test>",
+		Parent:   nil,
+		PosStart: nil,
+		PosEnd:   nil,
+	}
+
+	env := &object.Environment{
+		Name: "test",
+		Store: map[string]*object.Symbol{
+			"math": {
+				Name: "math",
+				Value: &object.Module{
+					Name: "math",
+					Env:  new(module.Math).Load(),
+				},
+				IsConst: true,
+			},
+		},
+		Outer: nil,
+	}
+
+	tests := []struct {
+		name     string
+		input    string
+		excepted object.Object
+	}{
+		{
+			name:  "Member Access Expression",
+			input: `math.PI;`,
+			excepted: &object.Float{
+				Value: 3.141592653589793,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.NewLexer("<test>", tt.input)
+			p, _ := parser.NewParser(l)
+			program := p.ParseProgram()
+			e := NewEvaluator(f, map[string]int{"math": 2})
+			val := e.evalMemberAccessExpression(program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.MemberAccessExpression), env)
 			if !reflect.DeepEqual(val, tt.excepted) {
 				t.Errorf("excepted %+v, got %+v", tt.excepted, val)
 			}

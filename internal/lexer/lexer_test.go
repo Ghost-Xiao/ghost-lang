@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/Ghost-Xiao/ghost-lang/internal/errors"
 	"github.com/Ghost-Xiao/ghost-lang/internal/util"
 )
 
@@ -386,7 +387,7 @@ func TestLexer_Errors(t *testing.T) {
 		{
 			name:  "Unclosed Multiline Comment",
 			input: "/* This is an unclosed multiline comment",
-			err: &SyntaxError{
+			err: &errors.SyntaxError{
 				Message:  `"*/" is expected.`,
 				PosStart: util.NewPos(1, 41, 40, "<test>", "/* This is an unclosed multiline comment"),
 				PosEnd:   util.NewPos(1, 43, 42, "<test>", "/* This is an unclosed multiline comment"),
@@ -395,7 +396,7 @@ func TestLexer_Errors(t *testing.T) {
 		{
 			name:  "Multiple Dots in Number",
 			input: "12.34.56",
-			err: &IllegalTokenError{
+			err: &errors.IllegalTokenError{
 				Message:  "illegal float literal.",
 				PosStart: util.NewPos(1, 6, 5, "<test>", "12.34.56"),
 				PosEnd:   util.NewPos(1, 7, 6, "<test>", "12.34.56"),
@@ -404,7 +405,7 @@ func TestLexer_Errors(t *testing.T) {
 		{
 			name:  "Unknown Escape Character",
 			input: "\"hello \\zworld\"",
-			err: &IllegalTokenError{
+			err: &errors.IllegalTokenError{
 				Message:  "illegal escape character.",
 				PosStart: util.NewPos(1, 8, 7, "<test>", "\"hello \\zworld\""),
 				PosEnd:   util.NewPos(1, 10, 9, "<test>", "\"hello \\zworld\""),
@@ -413,7 +414,7 @@ func TestLexer_Errors(t *testing.T) {
 		{
 			name:  "Unclosed String Literal",
 			input: "\"hello world",
-			err: &IllegalTokenError{
+			err: &errors.IllegalTokenError{
 				Message:  "unterminated string literal.",
 				PosStart: util.NewPos(1, 1, 0, "<test>", "\"hello world"),
 				PosEnd:   util.NewPos(1, 14, 13, "<test>", "\"hello world"),

@@ -1,11 +1,10 @@
-// 实现GoGhost语言的词法分析器，负责将源代码转换为标记流(token stream)
-
 package lexer
 
 import (
 	"fmt"
 	"strings"
 
+	"github.com/Ghost-Xiao/ghost-lang/internal/errors"
 	"github.com/Ghost-Xiao/ghost-lang/internal/util"
 )
 
@@ -121,7 +120,7 @@ func (l *Lexer) NextToken() (*Token, error) {
 				return &Token{Type: STRING, Literal: str, PosStart: posStart, PosEnd: l.NextPos.Copy()}, nil
 				// 非法字符处理
 			} else {
-				return &Token{Type: ILLEGAL, Literal: "ILLEGAL"}, &IllegalTokenError{
+				return &Token{Type: ILLEGAL, Literal: "ILLEGAL"}, &errors.IllegalTokenError{
 					Message:  fmt.Sprintf("illegal token \"%c\".", l.CurrPos.Char),
 					PosStart: l.CurrPos.Copy(),
 					PosEnd:   l.NextPos.Copy(),
@@ -213,7 +212,7 @@ func (l *Lexer) skipMultilineComment() error {
 	if l.CurrPos.Char != '*' || l.NextPos.Char != '/' {
 		posEnd := l.NextPos.Copy()
 		posEnd.Advance()
-		return &SyntaxError{
+		return &errors.SyntaxError{
 			Message:  "\"*/\" is expected.",
 			PosStart: l.CurrPos.Copy(),
 			PosEnd:   posEnd,
@@ -290,7 +289,7 @@ func (l *Lexer) scanNumber() (string, error) {
 				dotCount++
 				// 检查是否有多个小数点，浮点数只能有一个小数点
 				if dotCount > 1 {
-					return "", &IllegalTokenError{
+					return "", &errors.IllegalTokenError{
 						Message:  "illegal float literal.",
 						PosStart: l.CurrPos.Copy(),
 						PosEnd:   l.NextPos.Copy(),
@@ -405,7 +404,7 @@ func (l *Lexer) scanString() (string, error) {
 			l.NextChar()
 			// 检查转义字符后的字符是否存在
 			if l.CurrPos.Char == 0 {
-				return "", &IllegalTokenError{
+				return "", &errors.IllegalTokenError{
 					Message:  "trailing backslash.",
 					PosStart: slashPos,
 					PosEnd:   l.NextPos.Copy(),
@@ -414,7 +413,7 @@ func (l *Lexer) scanString() (string, error) {
 			// 查找有效的转义字符
 			escapeChar, ok := Escape[l.CurrPos.Char]
 			if !ok {
-				return "", &IllegalTokenError{
+				return "", &errors.IllegalTokenError{
 					Message:  "illegal escape character.",
 					PosStart: slashPos,
 					PosEnd:   l.NextPos.Copy(),
@@ -428,7 +427,7 @@ func (l *Lexer) scanString() (string, error) {
 	}
 	// 检查字符串是否正确闭合
 	if l.CurrPos.Char != quote {
-		return "", &IllegalTokenError{
+		return "", &errors.IllegalTokenError{
 			Message:  "unterminated string literal.",
 			PosStart: posStart,
 			PosEnd:   l.NextPos.Copy(),

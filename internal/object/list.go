@@ -3,6 +3,7 @@ package object
 import (
 	"strings"
 
+	"github.com/Ghost-Xiao/ghost-lang/internal/errors"
 	"github.com/Ghost-Xiao/ghost-lang/internal/frame"
 	"github.com/Ghost-Xiao/ghost-lang/internal/util"
 )
@@ -48,7 +49,7 @@ func (l *List) String() string {
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (l *List) Negative(posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"-\".",
 		PosStart: posStart,
@@ -69,7 +70,7 @@ func (l *List) Negative(posStart, posEnd *util.Pos, frame *frame.Frame) (Object,
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (l *List) BitNot(posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"~\".",
 		PosStart: posStart,
@@ -90,7 +91,7 @@ func (l *List) BitNot(posStart, posEnd *util.Pos, frame *frame.Frame) (Object, e
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (l *List) Not(posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"!\".",
 		PosStart: posStart,
@@ -116,7 +117,7 @@ func (l *List) Add(other Object, posStart, posEnd *util.Pos, frame *frame.Frame)
 		// 检查列表元素类型一致性
 		if len(l.Elements) > 0 && len(otherList.Elements) > 0 {
 			if l.Elements[0].Type() != otherList.Elements[0].Type() {
-				return nil, &OperationError{
+				return nil, &errors.OperationError{
 					Frame:    frame,
 					Message:  "cannot concatenate lists with different element types.",
 					PosStart: posStart,
@@ -130,7 +131,7 @@ func (l *List) Add(other Object, posStart, posEnd *util.Pos, frame *frame.Frame)
 		newElements = append(newElements, otherList.Elements...)
 		return &List{Elements: newElements}, nil
 	}
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"+\".",
 		PosStart: posStart,
@@ -152,7 +153,7 @@ func (l *List) Add(other Object, posStart, posEnd *util.Pos, frame *frame.Frame)
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (l *List) Subtract(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"-\".",
 		PosStart: posStart,
@@ -178,7 +179,7 @@ func (l *List) Multiply(other Object, posStart, posEnd *util.Pos, frame *frame.F
 		times := intObj.Value
 		// 负数或零次重复返回错误
 		if times <= 0 {
-			return nil, &OperationError{
+			return nil, &errors.OperationError{
 				Frame:    frame,
 				Message:  "invalid operation \"*\".",
 				PosStart: posStart,
@@ -197,7 +198,7 @@ func (l *List) Multiply(other Object, posStart, posEnd *util.Pos, frame *frame.F
 		}
 		return &List{Elements: newElements}, nil
 	}
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"*\".",
 		PosStart: posStart,
@@ -219,7 +220,7 @@ func (l *List) Multiply(other Object, posStart, posEnd *util.Pos, frame *frame.F
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (l *List) Divide(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"/\".",
 		PosStart: posStart,
@@ -241,7 +242,7 @@ func (l *List) Divide(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) 
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (l *List) Mod(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"%\".",
 		PosStart: posStart,
@@ -321,7 +322,7 @@ func (l *List) NotEqual(other Object, posStart, posEnd *util.Pos, frame *frame.F
 //
 //	Object - 比较结果
 func (l *List) LessThan(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"<\".",
 		PosStart: posStart,
@@ -342,7 +343,7 @@ func (l *List) LessThan(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame
 //
 //	Object - 比较结果
 func (l *List) GreaterThan(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \">\".",
 		PosStart: posStart,
@@ -363,7 +364,7 @@ func (l *List) GreaterThan(_ Object, posStart, posEnd *util.Pos, frame *frame.Fr
 //
 //	Object - 比较结果
 func (l *List) LessThanOrEqual(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"<=\".",
 		PosStart: posStart,
@@ -384,7 +385,7 @@ func (l *List) LessThanOrEqual(_ Object, posStart, posEnd *util.Pos, frame *fram
 //
 //	Object - 比较结果
 func (l *List) GreaterThanOrEqual(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \">=\".",
 		PosStart: posStart,
@@ -406,7 +407,7 @@ func (l *List) GreaterThanOrEqual(_ Object, posStart, posEnd *util.Pos, frame *f
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (l *List) BitAnd(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"&\".",
 		PosStart: posStart,
@@ -428,7 +429,7 @@ func (l *List) BitAnd(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) 
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (l *List) BitOr(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"|\".",
 		PosStart: posStart,
@@ -450,7 +451,7 @@ func (l *List) BitOr(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (l *List) Xor(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"^\".",
 		PosStart: posStart,
@@ -472,7 +473,7 @@ func (l *List) Xor(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Ob
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (l *List) LeftShift(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"<<\".",
 		PosStart: posStart,
@@ -494,7 +495,7 @@ func (l *List) LeftShift(_ Object, posStart, posEnd *util.Pos, frame *frame.Fram
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (l *List) RightShift(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \">>\".",
 		PosStart: posStart,
@@ -516,7 +517,7 @@ func (l *List) RightShift(_ Object, posStart, posEnd *util.Pos, frame *frame.Fra
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (l *List) And(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"&&\".",
 		PosStart: posStart,
@@ -538,7 +539,7 @@ func (l *List) And(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Ob
 //	Object - 运算结果
 //	error - 可能出现的错误
 func (l *List) Or(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
-	return nil, &OperationError{
+	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"||\".",
 		PosStart: posStart,
@@ -565,7 +566,7 @@ func (l *List) Index(other Object, posStart, posEnd *util.Pos, frame *frame.Fram
 		real = length + real
 	}
 	if real < 0 || real >= length {
-		return nil, &IndexError{
+		return nil, &errors.IndexError{
 			Frame:    frame,
 			Message:  "index out of range.",
 			PosStart: posStart,
@@ -595,7 +596,7 @@ func (l *List) Set(index Object, value Object, posStart, posEnd *util.Pos, frame
 		real = length + real
 	}
 	if real < 0 || real >= length {
-		return &IndexError{
+		return &errors.IndexError{
 			Frame:    frame,
 			Message:  "index out of range.",
 			PosStart: posStart,
@@ -603,7 +604,7 @@ func (l *List) Set(index Object, value Object, posStart, posEnd *util.Pos, frame
 		}
 	}
 	if value.Type() != l.Elements[0].Type() {
-		return &TypeError{
+		return &errors.TypeError{
 			Frame:    frame,
 			Message:  "list elements must have consistent types.",
 			PosStart: posStart,
