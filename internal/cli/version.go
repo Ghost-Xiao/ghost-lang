@@ -1,6 +1,10 @@
 package cli
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/fatih/color"
+)
 
 var (
 	Version   string // 版本号，通过编译参数注入
@@ -10,5 +14,5 @@ var (
 )
 
 func PrintVersion() {
-	printInfo(fmt.Sprintf("ghost-lang: ghost %s.", Version))
+	color.Blue(fmt.Sprintf("ghost-lang: ghost %s.", Version))
 }

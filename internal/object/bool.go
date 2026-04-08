@@ -516,3 +516,15 @@ func (b *Bool) Index(other Object, posStart, posEnd *util.Pos, frame *frame.Fram
 		PosEnd:   posEnd,
 	}
 }
+
+// Hash 返回布尔值的哈希值
+//
+// 返回值:
+//
+//	uint64 - 布尔值的哈希值
+func (b *Bool) Hash() uint64 {
+	if b.Value {
+		return 1
+	}
+	return 0
+}

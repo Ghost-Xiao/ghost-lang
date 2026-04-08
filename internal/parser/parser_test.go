@@ -2422,6 +2422,66 @@ func TestParser_ParseMemberAccessExpression(t *testing.T) {
 	}
 }
 
+func TestParser_ParseMapExpression(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected *ast.MapExpression
+	}{
+		{
+			name:  "Map Expression",
+			input: "{\"123\": 123, true: 1};",
+			expected: &ast.MapExpression{
+				Pairs: [][]ast.Expression{
+					{
+						&ast.StringExpression{
+							Value:    "123",
+							PosStart: util.NewPos(1, 2, 1, "<test>", "{\"123\": 123, true: 1};"),
+							PosEnd:   util.NewPos(1, 7, 6, "<test>", "{\"123\": 123, true: 1};"),
+						},
+						&ast.IntExpression{
+							Value:    123,
+							PosStart: util.NewPos(1, 9, 8, "<test>", "{\"123\": 123, true: 1};"),
+							PosEnd:   util.NewPos(1, 12, 11, "<test>", "{\"123\": 123, true: 1};"),
+						},
+					},
+					{
+						&ast.BoolExpression{
+							Value:    true,
+							PosStart: util.NewPos(1, 14, 13, "<test>", "{\"123\": 123, true: 1};"),
+							PosEnd:   util.NewPos(1, 18, 17, "<test>", "{\"123\": 123, true: 1};"),
+						},
+						&ast.IntExpression{
+							Value:    1,
+							PosStart: util.NewPos(1, 20, 19, "<test>", "{\"123\": 123, true: 1};"),
+							PosEnd:   util.NewPos(1, 21, 20, "<test>", "{\"123\": 123, true: 1};"),
+						},
+					},
+				},
+				PosStart: util.NewPos(1, 1, 0, "<test>", "{\"123\": 123, true: 1};"),
+				PosEnd:   util.NewPos(1, 22, 21, "<test>", "{\"123\": 123, true: 1};"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.NewLexer("<test>", tt.input)
+			p, _ := NewParser(l)
+			program := p.ParseProgram()
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.MapExpression)
+
+			if p.Err != nil {
+				t.Errorf("err = %+v, expected nil", p.Err)
+			}
+
+			if !reflect.DeepEqual(expr, tt.expected) {
+				t.Errorf("expected %+v, got %+v", tt.expected, expr)
+			}
+		})
+	}
+}
+
 func TestParser_Errors(t *testing.T) {
 	tests := []struct {
 		name  string

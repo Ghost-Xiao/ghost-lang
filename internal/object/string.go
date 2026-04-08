@@ -621,3 +621,18 @@ func (s *String) Set(index Object, value Object, posStart, posEnd *util.Pos, fra
 func (s *String) Length() int64 {
 	return int64(len(s.Value))
 }
+
+// Hash 返回字符串的哈希值
+//
+// 返回值:
+//
+//	uint64 - 字符串的哈希值
+func (s *String) Hash() uint64 {
+	// 用 FNV-1a 算法计算字符串的哈希值
+	hash := uint64(14695981039346656037) // 固定初始值
+	for i := 0; i < len(s.Value); i++ {
+		hash ^= uint64(s.Value[i])
+		hash *= 1099511628211 // 固定质数
+	}
+	return hash
+}

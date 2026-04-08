@@ -515,3 +515,12 @@ func (n *Null) Index(other Object, posStart, posEnd *util.Pos, frame *frame.Fram
 		PosEnd:   posEnd,
 	}
 }
+
+// Hash 返回空值的哈希值
+//
+// 返回值:
+//
+//	uint64 - 空值的哈希值
+func (n *Null) Hash() uint64 {
+	return 0
+}

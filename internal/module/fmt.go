@@ -88,6 +88,21 @@ func formatValue(obj object.Object) string {
 		}
 		sb.WriteString("]")
 		return sb.String()
+	case *object.Map:
+		var sb strings.Builder
+		sb.WriteString("{")
+		first := true
+		for _, pair := range v.Pairs {
+			if !first {
+				sb.WriteString(", ")
+			}
+			first = false
+			sb.WriteString(formatValue(pair.Key))
+			sb.WriteString(": ")
+			sb.WriteString(formatValue(pair.Value))
+		}
+		sb.WriteString("}")
+		return sb.String()
 	default:
 		return obj.String()
 	}

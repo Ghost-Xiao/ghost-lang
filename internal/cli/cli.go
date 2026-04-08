@@ -3,6 +3,8 @@ package cli
 import (
 	"flag"
 	"os"
+
+	"github.com/fatih/color"
 )
 
 func Run() {
@@ -42,7 +44,7 @@ func Run() {
 	args := flag.Args()
 	// 参数验证：未指定任何模式且无输入文件时显示错误
 	if len(args) == 0 {
-		printError("ghost-lang: invalid command line arguments.")
+		color.Red("ghost-lang: invalid command line arguments.")
 		PrintHelp()
 		return
 	}
@@ -60,7 +62,7 @@ func Run() {
 		return
 	default:
 		// 显示错误
-		printError("ghost-lang: unknown command.")
+		color.Red("ghost-lang: unknown command.")
 		PrintHelp()
 		return
 	}

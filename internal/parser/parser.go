@@ -1143,6 +1143,11 @@ func (p *Parser) parseBlockExpression(posStart *util.Pos) ast.Expression {
 		}
 		// 如果块表达式还未结束
 		if p.NextToken.Type != lexer.RBRACE {
+			// 如果是冒号，说明是映射表达式
+			if p.NextToken.Type == lexer.COLON {
+				// 解析映射表达式
+				return p.ParseMapExpression(stat, posStart, statPosStart)
+			}
 			// 检查语句后的分号
 			p.CheckNextAndAdvance(lexer.SEMICOLON)
 			if p.Err != nil {
@@ -1427,4 +1432,70 @@ func (p *Parser) parseMemberAccessExpression(left ast.Expression, posStart *util
 	ma.Member = member
 	ma.PosEnd = p.CurrToken.PosEnd.Copy()
 	return ma
+}
+
+// ParseMapExpression 解析映射表达式
+//
+// 参数:
+//
+//	stat - 语句节点
+//	posStart - 表达式的起始位置
+//	statPosStart - 语句的起始位置
+//
+// 返回值:
+//
+//	映射表达式节点 MapExpression
+func (p *Parser) ParseMapExpression(stat ast.Statement, posStart, statPosStart *util.Pos) ast.Expression {
+	me := &ast.MapExpression{
+		Pairs:    make([][]ast.Expression, 0),
+		PosStart: posStart,
+	}
+	// 检查第一个键是否为表达式
+	exprStat, ok := stat.(*ast.ExpressionStatement)
+	if !ok {
+		p.Err = &errors.SyntaxError{
+			Message:  "key must be an expression.",
+			PosStart: statPosStart,
+			PosEnd:   p.CurrToken.PosEnd.Copy(),
+		}
+		return nil
+	}
+	p.Advance()
+	p.Advance()
+	// 解析第一个值
+	value := p.ParseExpression(LOWEST)
+	if p.Err != nil {
+		return nil
+	}
+	me.Pairs = append(me.Pairs, []ast.Expression{exprStat.Expr, value})
+	// 如果下一个token不是}, 则继续解析映射对
+	for p.NextToken.Type != lexer.RBRACE {
+		// 检查并消耗逗号
+		p.CheckNextAndAdvance(lexer.COMMA)
+		if p.Err != nil {
+			return nil
+		}
+		p.Advance()
+		key := p.ParseExpression(LOWEST)
+		if p.Err != nil {
+			return nil
+		}
+		// 检查并消耗冒号
+		p.CheckNextAndAdvance(lexer.COLON)
+		if p.Err != nil {
+			return nil
+		}
+		p.Advance()
+		// 解析值
+		value = p.ParseExpression(LOWEST)
+		if p.Err != nil {
+			return nil
+		}
+		me.Pairs = append(me.Pairs, []ast.Expression{key, value})
+	}
+	if p.NextToken.Type == lexer.RBRACE {
+		p.Advance()
+	}
+	me.PosEnd = p.CurrToken.PosEnd.Copy()
+	return me
 }

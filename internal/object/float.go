@@ -641,3 +641,12 @@ func (f *Float) Index(other Object, posStart, posEnd *util.Pos, frame *frame.Fra
 		PosEnd:   posEnd,
 	}
 }
+
+// Hash 返回浮点数的哈希值
+//
+// 返回值:
+//
+//	uint64 - 浮点数的哈希值
+func (f *Float) Hash() uint64 {
+	return math.Float64bits(f.Value)
+}

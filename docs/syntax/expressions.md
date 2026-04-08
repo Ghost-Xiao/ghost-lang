@@ -103,10 +103,29 @@ ListLiteral ::= "[" Expression ("," Expression)* "]"
 ```ghost
 [1, 2, 3, 4, 5];
 ["apple", "banana", "orange"];
+[1, "hello", true, 3.14];
+```
+
+## 映射字面量(MapLiteral)
+表示映射值的表达式节点。
+
+**语法定义：**
+```
+MapLiteral ::= "{" (MapPair ("," MapPair)*)? "}"
+MapPair ::= Expression ":" Expression
+```
+
+**示例：**
+```ghost
+{"a": 1, "b": 2, "c": 3};
+{"name": "Alice", "age": 25, "isStudent": true};
+{1: "one", 2: "two", 3: "three"};
 ```
 
 **注意事项：**
-- 列表字面量的每个元素的类型必须相同。
+- 键必须是可哈希类型（整数、浮点数、字符串、布尔值、空值）
+- 键和值可以是任意类型
+- 同一个键在一个映射中只能出现一次，后面出现的会覆盖前面的
 
 ## 标识符(Identifier)
 表示变量名或函数名的表达式节点。
@@ -153,7 +172,14 @@ x + 10;
 y * 2;
 a > b;
 x == 10;
+var m1 = {"a": 1, "b": 2};
+var m2 = {"b": 3, "c": 4};
+var m3 = m1 + m2;  // {"a": 1, "b": 3, "c": 4}
 ```
+
+**注意事项：**
+- `+` 运算符可以用于两个映射的合并，返回一个新映射
+- 映射合并时，如果有相同的键，右侧映射的值会覆盖左侧映射的值
 
 ## 分组表达式(GroupExpression)
 用于改变运算优先级的括号表达式。
@@ -350,7 +376,7 @@ fmt.print("Hello", ["World", "!"]...);  // 等价于 fmt.print("Hello", "World",
 - 解包参数支持内置函数和自定义函数
 
 ## 索引表达式(IndexExpression)
-表示列表索引访问的表达式节点。
+表示列表索引访问或映射键访问的表达式节点。
 
 **语法定义：**
 ```
@@ -361,7 +387,14 @@ IndexExpression ::= Expression "[" Expression "]"
 ```ghost
 list[0];
 matrix[1][2];
+map["key"];
+map[123];
 ```
+
+**注意事项：**
+- 对于列表，索引必须是整数类型
+- 对于映射，键必须是可哈希类型（整数、浮点数、字符串、布尔值、空值）
+- 访问映射中不存在的键会抛出错误
 
 ## 命名空间访问表达式(NamespaceAccessExpression)
 用于访问命名空间中的成员的表达式节点。
@@ -432,10 +465,14 @@ ContainsExpression ::= Expression "contains" Expression
 [1, 2, 3] contains 2;
 [1, 2, 3] contains 4;
 "hello" contains "ell";
+{"a": 1, "b": 2} contains "a";
+{"a": 1, "b": 2} contains "c";
 ```
 
 **注意事项：**
-- 左操作数必须是列表或字符串类型
+- 左操作数必须是列表、字符串或映射类型
 - 对于列表，检查元素是否存在于列表中
 - 对于字符串，检查子字符串是否存在
+- 对于映射，检查键是否存在于映射中
 - 不支持检查子列表是否存在
+- 对于映射，查询值必须是可哈希类型

@@ -15,6 +15,7 @@ import (
 	"github.com/Ghost-Xiao/ghost-lang/internal/lexer"
 	"github.com/Ghost-Xiao/ghost-lang/internal/object"
 	"github.com/Ghost-Xiao/ghost-lang/internal/parser"
+	"github.com/fatih/color"
 )
 
 // StartREPL 启动repl，提供即时代码执行环境
@@ -30,14 +31,14 @@ func StartREPL() {
 		// 首先设置退出标志
 		exitRequested = true
 		// 打印退出信息
-		printInfo("\nBye!")
+		color.Blue("\nBye!")
 		// 刷新标准输出缓冲区
 		_ = os.Stdout.Sync()
 	}()
 	// 显示版本和欢迎信息
-	printInfo(fmt.Sprintf("ghost-lang %s | %s/%s | built %s.", Version, Platform, Arch, BuildTime))
-	printInfo("Welcome to the Ghost REPL.")
-	printInfo("Press Ctrl+C to exit.")
+	color.Blue(fmt.Sprintf("ghost-lang %s | %s/%s | built %s.", Version, Platform, Arch, BuildTime))
+	color.Blue("Welcome to the Ghost REPL.")
+	color.Blue("Press Ctrl+C to exit.")
 	// 创建解释器环境
 	env := &object.Environment{
 		Name:  "repl",
@@ -80,7 +81,7 @@ func StartREPL() {
 			p, err := parser.NewParser(l)
 			if err != nil {
 				if !shouldContinue(err) {
-					printError(err)
+					color.Red(err.Error())
 					scannerOK = true
 					break
 				} else {
@@ -101,7 +102,7 @@ func StartREPL() {
 						p2, err2 := parser.NewParser(l2)
 						if err2 != nil {
 							if !shouldContinue(err2) {
-								printError(err2)
+								color.Red(err2.Error())
 								scannerOK = true
 								break
 							} else {
@@ -114,7 +115,7 @@ func StartREPL() {
 						expr := p2.ParseExpression(parser.LOWEST)
 						if p2.Err != nil {
 							if !shouldContinue(p2.Err) {
-								printError(p2.Err)
+								color.Red(p2.Err.Error())
 								scannerOK = true
 								break
 							} else {
@@ -128,7 +129,7 @@ func StartREPL() {
 						e := evaluator.NewEvaluator(f, moduleCache)
 						ret := e.Eval(expr, env)
 						if e.Err != nil {
-							printError(e.Err)
+							color.Red(e.Err.Error())
 							scannerOK = true
 							break
 						}
@@ -141,7 +142,7 @@ func StartREPL() {
 						scannerOK = true
 						break
 					}
-					printError(p.Err)
+					color.Red(p.Err.Error())
 					scannerOK = true
 					break
 				} else {
@@ -155,7 +156,7 @@ func StartREPL() {
 			e := evaluator.NewEvaluator(f, moduleCache)
 			res := e.Eval(program, env)
 			if e.Err != nil {
-				printError(e.Err)
+				color.Red(e.Err.Error())
 				scannerOK = true
 				break
 			}
@@ -170,10 +171,10 @@ func StartREPL() {
 		}
 		if !scannerOK && !exitRequested {
 			if err := scanner.Err(); err != nil {
-				printError("ghost-lang: failed to read input.")
+				color.Red("ghost-lang: failed to read input.")
 			} else {
 				// 打印退出信息
-				printInfo("\nBye!")
+				color.Blue("\nBye!")
 				// 刷新标准输出缓冲区
 				_ = os.Stdout.Sync()
 				return

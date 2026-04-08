@@ -14,6 +14,7 @@ import (
 	"github.com/Ghost-Xiao/ghost-lang/internal/lexer"
 	"github.com/Ghost-Xiao/ghost-lang/internal/object"
 	"github.com/Ghost-Xiao/ghost-lang/internal/parser"
+	"github.com/fatih/color"
 )
 
 // RunFile 执行指定的.gh文件
@@ -29,7 +30,7 @@ func RunFile(fileName string) {
 		// 等待中断信号
 		<-sigChan
 		// 打印退出信息
-		printInfo("\nExecution stopped by user.")
+		color.Blue("\nExecution stopped by user.")
 		// 刷新标准输出缓冲区
 		_ = os.Stdout.Sync()
 		// 退出
@@ -39,27 +40,27 @@ func RunFile(fileName string) {
 	// 验证文件扩展名
 	slice := strings.Split(fileName, ".")
 	if (len(slice) > 1 && slice[len(slice)-1] != "gh") || len(slice) <= 1 {
-		printError(fmt.Sprintf("ghost-lang: invalid file extension: \"%s\".", fileName))
+		color.Red(fmt.Sprintf("ghost-lang: invalid file extension: \"%s\".", fileName))
 		return
 	}
 
 	// 读取文件内容
 	data, err := os.ReadFile(fileName)
 	if err != nil {
-		printError(fmt.Sprintf("ghost-lang: file not found: \"%s\".", fileName))
+		color.Red(fmt.Sprintf("ghost-lang: file not found: \"%s\".", fileName))
 		return
 	}
 
 	// 获取绝对路径
 	absPath, err := filepath.Abs(fileName)
 	if err != nil {
-		printError(fmt.Sprintf("ghost-lang: failed to resolve absolute path: \"%s\".", fileName))
+		color.Red(fmt.Sprintf("ghost-lang: failed to resolve absolute path: \"%s\".", fileName))
 		return
 	}
 
 	// 显示版本和文件信息
-	printInfo(fmt.Sprintf("ghost-lang %s | %s/%s | built %s.", Version, Platform, Arch, BuildTime))
-	printInfo(fmt.Sprintf("Running file \"%s\".", absPath))
+	color.Blue(fmt.Sprintf("ghost-lang %s | %s/%s | built %s.", Version, Platform, Arch, BuildTime))
+	color.Blue(fmt.Sprintf("Running file \"%s\".", absPath))
 
 	// 记录开始时间
 	startTime := time.Now()
@@ -70,12 +71,12 @@ func RunFile(fileName string) {
 	l := lexer.NewLexer(baseName, code)
 	p, err2 := parser.NewParser(l)
 	if err2 != nil {
-		printError(err2)
+		color.Red(err2.Error())
 		return
 	}
 	program := p.ParseProgram()
 	if p.Err != nil {
-		printError(p.Err)
+		color.Red(p.Err.Error())
 		return
 	}
 	// 创建解释器环境
@@ -101,7 +102,7 @@ func RunFile(fileName string) {
 	e := evaluator.NewEvaluator(f, map[string]int{})
 	e.Eval(program, env)
 	if e.Err != nil {
-		printError(e.Err)
+		color.Red(e.Err.Error())
 		return
 	}
 
@@ -113,16 +114,16 @@ func RunFile(fileName string) {
 	// 根据时间长度决定是否显示组合格式
 	if executionTime.Nanoseconds() == 0 {
 		// 时间为0，直接显示0 ns
-		printInfo("Execution time: 0 ns")
+		color.Blue("Execution time: 0 ns")
 	} else if executionTime < time.Second {
 		// 毫秒、微秒、纳秒级别，显示秒数和换算单位
-		printInfo(fmt.Sprintf("Execution time: %.9f s (%s)", executionTime.Seconds(), formatDuration(executionTime)))
+		color.Blue(fmt.Sprintf("Execution time: %.9f s (%s)", executionTime.Seconds(), formatDuration(executionTime)))
 	} else if executionTime < 60*time.Second {
 		// 1-60秒之间，只显示秒数
-		printInfo(fmt.Sprintf("Execution time: %.9f s", executionTime.Seconds()))
+		color.Blue(fmt.Sprintf("Execution time: %.9f s", executionTime.Seconds()))
 	} else {
 		// 60秒及以上，显示秒数和组合格式
-		printInfo(fmt.Sprintf("Execution time: %.9f s (%s)", executionTime.Seconds(), formatDuration(executionTime)))
+		color.Blue(fmt.Sprintf("Execution time: %.9f s (%s)", executionTime.Seconds(), formatDuration(executionTime)))
 	}
 }
 

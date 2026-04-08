@@ -738,3 +738,12 @@ func (i *Int) Index(other Object, posStart, posEnd *util.Pos, frame *frame.Frame
 		PosEnd:   posEnd,
 	}
 }
+
+// Hash 返回整数的哈希值
+//
+// 返回值:
+//
+//	uint64 - 整数的哈希值
+func (i *Int) Hash() uint64 {
+	return uint64(i.Value)
+}

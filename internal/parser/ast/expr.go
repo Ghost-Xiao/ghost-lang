@@ -752,3 +752,40 @@ func (re *MemberAccessExpression) Expression() {}
 func (re *MemberAccessExpression) IsLvalue() bool {
 	return true
 }
+
+// MapExpression 是映射表达式节点
+type MapExpression struct {
+	Pairs    [][]Expression // 映射对
+	PosStart *util.Pos      // 表达式的起始位置
+	PosEnd   *util.Pos      // 表达式的结束位置
+}
+
+// String 返回映射表达式的字符串表示
+// 格式为：{<key1>: <value1>, <key2>: <value2>, ...}
+//
+// 返回值:
+//
+//	映射表达式的字符串表示
+func (re *MapExpression) String() string {
+	var sb strings.Builder
+	sb.WriteString("{")
+	for i, pair := range re.Pairs {
+		sb.WriteString(pair[0].String())
+		sb.WriteString(": ")
+		sb.WriteString(pair[1].String())
+		if i != len(re.Pairs)-1 {
+			sb.WriteString(", ")
+		}
+	}
+	sb.WriteString("}")
+	return sb.String()
+}
+
+// Expression 是标记方法，用于类型判断
+// 实现Expression接口
+func (re *MapExpression) Expression() {}
+
+// IsLvalue 方法，返回是否为左值
+func (re *MapExpression) IsLvalue() bool {
+	return false
+}

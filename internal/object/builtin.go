@@ -5,7 +5,6 @@ import (
 	"math"
 	"os"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/Ghost-Xiao/ghost-lang/internal/errors"
 	"github.com/Ghost-Xiao/ghost-lang/internal/frame"
@@ -629,12 +628,8 @@ var Builtins = map[string]Object{
 		HaveVariadic: false,
 		Fn: func(f *frame.Frame, posStart, posEnd *util.Pos, args ...Object) (Object, error) {
 			a := args[0]
-			switch a := a.(type) {
-			case *String:
-				return &Int{Value: int64(utf8.RuneCountInString(a.Value))}, nil
-			case *List:
-				return &Int{Value: int64(len(a.Elements))}, nil
-			default:
+			indexable, ok := a.(Indexable)
+			if !ok {
 				return nil, &errors.TypeError{
 					Frame:    f,
 					Message:  "len() argument must be a sequence or collection.",
@@ -642,6 +637,7 @@ var Builtins = map[string]Object{
 					PosEnd:   posEnd,
 				}
 			}
+			return &Int{Value: indexable.Length()}, nil
 		},
 	},
 	// power函数

@@ -16,34 +16,6 @@ import (
 	"github.com/Ghost-Xiao/ghost-lang/internal/util"
 )
 
-// indexable 表示可索引接口
-type indexable interface {
-	// Set 设置索引位置的值
-	//
-	// 参数:
-	//
-	//	index - 索引值
-	//	value - 要设置的值
-	//	posStart - 表达式起始位置
-	//	posEnd - 表达式结束位置
-	//	frame - 当前调用栈
-	//
-	// 返回值:
-	//
-	//	error - 可能出现的错误
-	Set(index object.Object, value object.Object, posStart, posEnd *util.Pos, frame *frame.Frame) error
-
-	// Length 返回可索引对象的长度
-	//
-	// 返回值:
-	//
-	//	int64 - 可索引对象的长度
-	Length() int64
-
-	// 嵌入 object.Object 接口
-	object.Object
-}
-
 // Evaluator 解释器结构体，负责执行AST节点并管理运行时状态
 // 包含一个错误字段用于捕获和传递运行时错误
 type Evaluator struct {
@@ -151,6 +123,8 @@ func (e *Evaluator) Eval(nodes ast.Node, env *object.Environment) object.Object 
 		return e.evalContainsExpression(n, env)
 	case *ast.MemberAccessExpression:
 		return e.evalMemberAccessExpression(n, env)
+	case *ast.MapExpression:
+		return e.evalMapExpression(n, env)
 	default:
 		panic(fmt.Sprintf("unknown node type: %T", n))
 	}
@@ -412,8 +386,7 @@ func (e *Evaluator) evalIndexExpression(indexExpression *ast.IndexExpression, en
 		return nil
 	}
 	// 判断索引是否是整数
-	intIdx, ok := idxObj.(*object.Int)
-	if !ok {
+	if _, ok := idxObj.(*object.Int); !ok && target.Type() == "List" {
 		e.Err = &errors.TypeError{
 			Frame:    e.Frame,
 			Message:  "index must be integer.",
@@ -422,7 +395,7 @@ func (e *Evaluator) evalIndexExpression(indexExpression *ast.IndexExpression, en
 		}
 		return nil
 	}
-	ret, err := target.Index(intIdx, indexExpression.PosStart, indexExpression.PosEnd, e.Frame)
+	ret, err := target.Index(idxObj, indexExpression.PosStart, indexExpression.PosEnd, e.Frame)
 	if err != nil {
 		e.Err = err
 		return nil
@@ -697,7 +670,7 @@ func (e *Evaluator) evalForEachStatement(forEachStatement *ast.ForEachStatement,
 		return nil
 	}
 	// 检查目标是否可索引
-	idxable, ok := target.(indexable)
+	idxable, ok := target.(object.Indexable)
 	if !ok {
 		e.Err = &errors.TypeError{
 			Frame:    e.Frame,
@@ -707,128 +680,243 @@ func (e *Evaluator) evalForEachStatement(forEachStatement *ast.ForEachStatement,
 		}
 		return nil
 	}
-	// 评估步长
-	step := int64(1)
-	if forEachStatement.Step != nil {
-		stepValue := e.Eval(forEachStatement.Step, forEachEnv)
-		if e.Err != nil {
-			return nil
-		}
-		if stepValue.Type() != "Int" {
-			e.Err = &errors.TypeError{
-				Frame:    e.Frame,
-				Message:  "step must be an integer.",
-				PosStart: forEachStatement.PosStart,
-				PosEnd:   forEachStatement.PosEnd,
+	switch idxable := idxable.(type) {
+	// 列表索引
+	case *object.List:
+		// 评估步长
+		step := int64(1)
+		if forEachStatement.Step != nil {
+			stepValue := e.Eval(forEachStatement.Step, forEachEnv)
+			if e.Err != nil {
+				return nil
 			}
-			return nil
-		}
-		step = stepValue.(*object.Int).Value
-		if step <= 0 {
-			e.Err = &errors.TypeError{
-				Frame:    e.Frame,
-				Message:  "step must be a positive integer.",
-				PosStart: forEachStatement.PosStart,
-				PosEnd:   forEachStatement.PosEnd,
-			}
-			return nil
-		}
-	}
-	// 遍历目标
-	for i := int64(0); i < idxable.Length(); i += step {
-		if forEachStatement.IsNewVar {
-			if forEachStatement.Index != nil {
-				indexName := forEachStatement.Index.(*ast.IdentifierExpression).Name
-				// 检查变量是否已定义
-				if _, ok := forEachEnv.Get(indexName); ok && i == 0 {
-					e.Err = &errors.VariableError{
-						Frame:    e.Frame,
-						Message:  fmt.Sprintf("variable \"%s\" already defined.", indexName),
-						PosStart: forEachStatement.PosStart,
-						PosEnd:   forEachStatement.PosEnd,
-					}
-					return nil
-				}
-				// 创建符号
-				sym := &object.Symbol{
-					Name:    indexName,
-					Value:   &object.Int{Value: i},
-					IsConst: false,
-				}
-				// 绑定变量
-				forEachEnv.Set(indexName, sym)
-			}
-			valName := forEachStatement.Value.(*ast.IdentifierExpression).Name
-			// 检查变量是否已定义
-			if _, ok := forEachEnv.Get(valName); ok && i == 0 {
-				e.Err = &errors.VariableError{
+			if stepValue.Type() != "Int" {
+				e.Err = &errors.TypeError{
 					Frame:    e.Frame,
-					Message:  fmt.Sprintf("variable \"%s\" already defined.", valName),
+					Message:  "step must be an integer.",
 					PosStart: forEachStatement.PosStart,
 					PosEnd:   forEachStatement.PosEnd,
 				}
 				return nil
 			}
-			value, err := idxable.Index(&object.Int{Value: i},
-				forEachStatement.PosStart,
-				forEachStatement.PosEnd,
-				e.Frame)
-			if err != nil {
-				e.Err = err
+			step = stepValue.(*object.Int).Value
+			if step <= 0 {
+				e.Err = &errors.TypeError{
+					Frame:    e.Frame,
+					Message:  "step must be a positive integer.",
+					PosStart: forEachStatement.PosStart,
+					PosEnd:   forEachStatement.PosEnd,
+				}
 				return nil
 			}
-			// 创建符号
-			sym := &object.Symbol{
-				Name:    valName,
-				Value:   value,
-				IsConst: false,
-			}
-			// 绑定变量
-			forEachEnv.Set(valName, sym)
-		} else {
-			if forEachStatement.Index != nil {
-				// 赋值索引变量
-				_, err := e.assign(forEachStatement.Index,
+		}
+		// 遍历目标
+		for i := int64(0); i < idxable.Length(); i += step {
+			if forEachStatement.IsNewVar {
+				if forEachStatement.Index != nil {
+					indexName := forEachStatement.Index.(*ast.IdentifierExpression).Name
+					// 检查变量是否已定义
+					if _, ok := forEachEnv.Get(indexName); ok && i == 0 {
+						e.Err = &errors.VariableError{
+							Frame:    e.Frame,
+							Message:  fmt.Sprintf("variable \"%s\" already defined.", indexName),
+							PosStart: forEachStatement.PosStart,
+							PosEnd:   forEachStatement.PosEnd,
+						}
+						return nil
+					}
+					// 创建符号
+					sym := &object.Symbol{
+						Name:    indexName,
+						Value:   &object.Int{Value: i},
+						IsConst: false,
+					}
+					// 绑定变量
+					forEachEnv.Set(indexName, sym)
+				}
+				valName := forEachStatement.Value.(*ast.IdentifierExpression).Name
+				// 检查变量是否已定义
+				if _, ok := forEachEnv.Get(valName); ok && i == 0 {
+					e.Err = &errors.VariableError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("variable \"%s\" already defined.", valName),
+						PosStart: forEachStatement.PosStart,
+						PosEnd:   forEachStatement.PosEnd,
+					}
+					return nil
+				}
+				value, err := idxable.Index(&object.Int{Value: i},
+					forEachStatement.PosStart,
+					forEachStatement.PosEnd,
+					e.Frame)
+				if err != nil {
+					e.Err = err
+					return nil
+				}
+				// 创建符号
+				sym := &object.Symbol{
+					Name:    valName,
+					Value:   value,
+					IsConst: false,
+				}
+				// 绑定变量
+				forEachEnv.Set(valName, sym)
+			} else {
+				if forEachStatement.Index != nil {
+					// 赋值索引变量
+					_, err := e.assign(forEachStatement.Index,
+						forEachEnv,
+						forEachStatement.PosStart,
+						forEachStatement.PosEnd,
+						&object.Int{Value: i}, nil,
+					)
+					if err != nil {
+						e.Err = err
+						return nil
+					}
+				}
+				// 赋值值变量
+				value, err := idxable.Index(&object.Int{Value: i},
+					forEachStatement.PosStart,
+					forEachStatement.PosEnd,
+					e.Frame)
+				if err != nil {
+					e.Err = err
+					return nil
+				}
+				_, err = e.assign(forEachStatement.Value,
 					forEachEnv,
 					forEachStatement.PosStart,
 					forEachStatement.PosEnd,
-					&object.Int{Value: i}, nil,
+					value, nil,
 				)
 				if err != nil {
 					e.Err = err
 					return nil
 				}
 			}
-			// 赋值值变量
-			value, err := idxable.Index(&object.Int{Value: i},
-				forEachStatement.PosStart,
-				forEachStatement.PosEnd,
-				e.Frame)
-			if err != nil {
-				e.Err = err
+			// 执行循环体
+			ret := e.evalWithSpecialValue(forEachStatement.Body, forEachEnv)
+			if e.Err != nil {
 				return nil
 			}
-			_, err = e.assign(forEachStatement.Value,
-				forEachEnv,
-				forEachStatement.PosStart,
-				forEachStatement.PosEnd,
-				value, nil,
-			)
-			if err != nil {
-				e.Err = err
-				return nil
+			if returnValue, ok := ret.(*object.ReturnValue); ok {
+				return returnValue
+			}
+			if _, ok := ret.(*object.BreakValue); ok {
+				break
 			}
 		}
-		// 执行循环体
-		ret := e.evalWithSpecialValue(forEachStatement.Body, forEachEnv)
-		if e.Err != nil {
+	// 映射索引
+	case *object.Map:
+		// 映射索引不支持步长参数
+		if forEachStatement.Step != nil {
+			e.Err = &errors.TypeError{
+				Frame:    e.Frame,
+				Message:  "map indexable does not support step parameter.",
+				PosStart: forEachStatement.PosStart,
+				PosEnd:   forEachStatement.PosEnd,
+			}
 			return nil
 		}
-		if returnValue, ok := ret.(*object.ReturnValue); ok {
-			return returnValue
-		}
-		if _, ok := ret.(*object.BreakValue); ok {
-			break
+		// 遍历目标
+		i := 0
+		for _, pair := range idxable.Pairs {
+			if forEachStatement.IsNewVar {
+				if forEachStatement.Index != nil {
+					indexName := forEachStatement.Index.(*ast.IdentifierExpression).Name
+					// 检查变量是否已定义
+					if _, ok := forEachEnv.Get(indexName); ok && i == 0 {
+						e.Err = &errors.VariableError{
+							Frame:    e.Frame,
+							Message:  fmt.Sprintf("variable \"%s\" already defined.", indexName),
+							PosStart: forEachStatement.PosStart,
+							PosEnd:   forEachStatement.PosEnd,
+						}
+						return nil
+					}
+					// 创建符号
+					sym := &object.Symbol{
+						Name:    indexName,
+						Value:   pair.Key,
+						IsConst: false,
+					}
+					// 绑定变量
+					forEachEnv.Set(indexName, sym)
+				}
+				valName := forEachStatement.Value.(*ast.IdentifierExpression).Name
+				// 检查变量是否已定义
+				if _, ok := forEachEnv.Get(valName); ok && i == 0 {
+					e.Err = &errors.VariableError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("variable \"%s\" already defined.", valName),
+						PosStart: forEachStatement.PosStart,
+						PosEnd:   forEachStatement.PosEnd,
+					}
+					return nil
+				}
+				value, err := idxable.Index(pair.Key,
+					forEachStatement.PosStart,
+					forEachStatement.PosEnd,
+					e.Frame)
+				if err != nil {
+					e.Err = err
+					return nil
+				}
+				// 创建符号
+				sym := &object.Symbol{
+					Name:    valName,
+					Value:   value,
+					IsConst: false,
+				}
+				// 绑定变量
+				forEachEnv.Set(valName, sym)
+			} else {
+				if forEachStatement.Index != nil {
+					// 赋值索引变量
+					_, err := e.assign(forEachStatement.Index,
+						forEachEnv,
+						forEachStatement.PosStart,
+						forEachStatement.PosEnd,
+						pair.Key, nil,
+					)
+					if err != nil {
+						e.Err = err
+						return nil
+					}
+				}
+				// 赋值值变量
+				value, err := idxable.Index(pair.Key,
+					forEachStatement.PosStart,
+					forEachStatement.PosEnd,
+					e.Frame)
+				if err != nil {
+					e.Err = err
+					return nil
+				}
+				_, err = e.assign(forEachStatement.Value,
+					forEachEnv,
+					forEachStatement.PosStart,
+					forEachStatement.PosEnd,
+					value, nil,
+				)
+				if err != nil {
+					e.Err = err
+					return nil
+				}
+			}
+			// 执行循环体
+			ret := e.evalWithSpecialValue(forEachStatement.Body, forEachEnv)
+			if e.Err != nil {
+				return nil
+			}
+			if returnValue, ok := ret.(*object.ReturnValue); ok {
+				return returnValue
+			}
+			if _, ok := ret.(*object.BreakValue); ok {
+				break
+			}
+			i++
 		}
 	}
 	return nil
@@ -1096,33 +1184,13 @@ func (e *Evaluator) evalStringExpression(stringExpression *ast.StringExpression,
 // 返回值:
 //
 //	object.Object - 包含列表值的object.List实例，错误时返回nil
-//
-// 错误处理:
-//
-//	若列表元素类型不一致，设置errors.TypeError并返回nil
 func (e *Evaluator) evalListExpression(listExpression *ast.ListExpression, env *object.Environment) object.Object {
 	elements := make([]object.Object, 0, len(listExpression.Value))
-	var firstType string
 	// 解释每个列表元素
-	for i, elementExpr := range listExpression.Value {
+	for _, elementExpr := range listExpression.Value {
 		element := e.Eval(elementExpr, env)
 		if e.Err != nil {
 			return nil
-		}
-		// 第一个元素确定列表的类型
-		if i == 0 {
-			firstType = element.Type()
-		} else {
-			// 检查后续元素类型是否与第一个元素一致
-			if element.Type() != firstType {
-				e.Err = &errors.TypeError{
-					Frame:    e.Frame,
-					Message:  "list elements must have consistent types.",
-					PosStart: listExpression.PosStart,
-					PosEnd:   listExpression.PosEnd,
-				}
-				return nil
-			}
 		}
 		elements = append(elements, element)
 	}
@@ -1443,29 +1511,30 @@ func (e *Evaluator) checkIndexTargetConst(target ast.Expression, env *object.Env
 	return nil
 }
 
-// assign 可复用的赋值抽象函数，处理所有类型的左值赋值
-// 支持两种模式：直接设置新值，或者获取当前值并通过回调函数计算新值
+// assign 执行赋值操作
 //
 // 参数:
 //
-//	lvalue - 左值表达式（IdentifierExpression、NamespaceAccessExpression、IndexExpression）
-//	env - 执行环境
+//	lvalue - 左值表达式，可以是标识符、命名空间访问、成员访问或索引表达式
+//	env - 当前执行环境
 //	posStart - 表达式起始位置
 //	posEnd - 表达式结束位置
-//	newValue - 直接设置的新值（如果为nil，则使用callback模式）
-//	callback - 回调函数，接收当前值并返回新值（仅在newValue为nil时使用）
+//	newValue - 直接赋值的新值，如果为 nil 则使用 callback 计算
+//	callback - 计算新值的回调函数，接收当前值作为参数，返回新值
 //
 // 返回值:
 //
-//	object.Object - 赋值后的值（或原始值，取决于使用场景）
+//	object.Object - 赋值后的值
 //	error - 可能出现的错误
 func (e *Evaluator) assign(lvalue ast.Expression, env *object.Environment, posStart, posEnd *util.Pos, newValue object.Object, callback func(current object.Object) object.Object) (object.Object, error) {
 	switch lval := lvalue.(type) {
 	case *ast.IdentifierExpression, *ast.NamespaceAccessExpression, *ast.MemberAccessExpression:
+		// 获取要赋值的符号
 		sym, err := e.getSymbol(lval, env, posStart, posEnd)
 		if err != nil {
 			return nil, err
 		}
+		// 检查是否是常量，常量不能被重新赋值
 		if sym.IsConst {
 			var varName string
 			if id, ok := lval.(*ast.IdentifierExpression); ok {
@@ -1482,26 +1551,30 @@ func (e *Evaluator) assign(lvalue ast.Expression, env *object.Environment, posSt
 				PosEnd:   posEnd,
 			}
 		}
-
-		var result object.Object
+		// 计算最终要赋值的值
+		var result object.Object = &object.Null{}
 		if newValue != nil {
+			// 直接使用提供的新值
 			result = newValue
 		} else {
+			// 使用回调函数基于当前值计算新值
 			result = callback(sym.Value)
 			if e.Err != nil {
 				return nil, e.Err
 			}
 		}
-
+		// 创建新的符号对象
 		newSym := &object.Symbol{
 			Name:    sym.Name,
 			Value:   result,
 			IsConst: false,
 		}
-
+		// 根据左值类型执行不同的赋值操作
 		if id, ok := lval.(*ast.IdentifierExpression); ok {
+			// 普通标识符，在当前环境中赋值
 			env.Assign(id.Name, newSym)
 		} else if ns, ok := lval.(*ast.NamespaceAccessExpression); ok {
+			// 命名空间访问，在命名空间中赋值
 			tar := e.Eval(ns.Target, env)
 			if e.Err != nil {
 				return nil, e.Err
@@ -1510,6 +1583,7 @@ func (e *Evaluator) assign(lvalue ast.Expression, env *object.Environment, posSt
 				namespace.Member.Set(sym.Name, newSym)
 			}
 		} else if ma, ok := lval.(*ast.MemberAccessExpression); ok {
+			// 成员访问，在模块中赋值
 			tar := e.Eval(ma.Target, env)
 			if e.Err != nil {
 				return nil, e.Err
@@ -1518,35 +1592,20 @@ func (e *Evaluator) assign(lvalue ast.Expression, env *object.Environment, posSt
 				module.Env.Set(sym.Name, newSym)
 			}
 		}
-
 		return result, nil
-
 	case *ast.IndexExpression:
+		// 检查索引目标是否是常量
 		err := e.checkIndexTargetConst(lval.Target, env, lval.PosStart, lval.PosEnd)
 		if err != nil {
 			return nil, err
 		}
-
+		// 求值索引目标
 		target := e.Eval(lval.Target, env)
 		if e.Err != nil {
 			return nil, e.Err
 		}
-
-		index := e.Eval(lval.Index, env)
-		if e.Err != nil {
-			return nil, e.Err
-		}
-
-		if _, ok := index.(*object.Int); !ok {
-			return nil, &errors.TypeError{
-				Frame:    e.Frame,
-				Message:  "index must be integer.",
-				PosStart: posStart,
-				PosEnd:   posEnd,
-			}
-		}
-
-		idxable, ok := target.(indexable)
+		// 检查目标是否支持索引操作
+		idxable, ok := target.(object.Indexable)
 		if !ok {
 			return nil, &errors.TypeError{
 				Frame:    e.Frame,
@@ -1555,11 +1614,27 @@ func (e *Evaluator) assign(lvalue ast.Expression, env *object.Environment, posSt
 				PosEnd:   posEnd,
 			}
 		}
-
-		var result object.Object
+		// 求值索引值
+		index := e.Eval(lval.Index, env)
+		if e.Err != nil {
+			return nil, e.Err
+		}
+		// 检查索引是否是整数
+		if _, ok := index.(*object.Int); !ok && target.Type() == "List" {
+			return nil, &errors.TypeError{
+				Frame:    e.Frame,
+				Message:  "index must be integer.",
+				PosStart: posStart,
+				PosEnd:   posEnd,
+			}
+		}
+		// 计算最终要赋值的值
+		var result object.Object = &object.Null{}
 		if newValue != nil {
+			// 直接使用提供的新值
 			result = newValue
 		} else {
+			// 使用回调函数基于当前值计算新值
 			current := e.Eval(lval, env)
 			if e.Err != nil {
 				return nil, e.Err
@@ -1569,15 +1644,14 @@ func (e *Evaluator) assign(lvalue ast.Expression, env *object.Environment, posSt
 				return nil, e.Err
 			}
 		}
-
+		// 执行索引赋值操作
 		err2 := idxable.Set(index, result, posStart, posEnd, e.Frame)
 		if err2 != nil {
 			return nil, err2
 		}
-
 		return result, nil
-
 	default:
+		// 不支持的左值类型
 		return nil, &errors.TypeError{
 			Frame:    e.Frame,
 			Message:  "invalid variable name type.",
@@ -1843,14 +1917,10 @@ func (e *Evaluator) evalPostfixUnaryIncDecExpression(postfixUnaryIncDecExpressio
 		}
 	}
 
-	var oldValue object.Object
-	captured := false
+	var oldValue object.Object = &object.Null{}
 
 	_, err := e.assign(postfixUnaryIncDecExpression.Left, env, postfixUnaryIncDecExpression.PosStart, postfixUnaryIncDecExpression.PosEnd, nil, func(current object.Object) object.Object {
-		if !captured {
-			oldValue = current
-			captured = true
-		}
+		oldValue = current
 		return e.evalInfixOperator(&ast.InfixExpression{
 			Left:     postfixUnaryIncDecExpression.Left,
 			Operator: operator,
@@ -2079,7 +2149,7 @@ func (e *Evaluator) evalInfixOperator(infixExpression *ast.InfixExpression, left
 }
 
 func (e *Evaluator) evalWithSpecialValue(node ast.Node, env *object.Environment) object.Object {
-	var ret object.Object
+	var ret object.Object = &object.Null{}
 	switch n := node.(type) {
 	case *ast.ExpressionStatement:
 		ret = e.Eval(n.Expr, env)
@@ -2134,7 +2204,7 @@ func (e *Evaluator) evalWithSpecialValue(node ast.Node, env *object.Environment)
 //
 //	object.Object - 块表达式的结果，发生错误时返回nil
 func (e *Evaluator) evalBlockExpression(blockExpression *ast.BlockExpression, env *object.Environment) object.Object {
-	var ret object.Object
+	var ret object.Object = &object.Null{}
 	// 创建新环境
 	blockEnv := &object.Environment{
 		Name:  "block",
@@ -2415,15 +2485,6 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 				// 处理可变参数：收集剩余的所有参数到一个列表中
 				variadicArgs := make([]object.Object, 0)
 				for j := i; j < len(argument); j++ {
-					if j != i && argument[j].Type() != variadicArgs[0].Type() {
-						e.Err = &errors.TypeError{
-							Frame:    e.Frame,
-							Message:  "all variadic arguments must be of the same type.",
-							PosStart: callExpression.PosStart,
-							PosEnd:   callExpression.PosEnd,
-						}
-						return nil
-					}
 					variadicArgs = append(variadicArgs, argument[j])
 				}
 				// 创建列表对象
@@ -2626,21 +2687,6 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 			}
 		}
 
-		// 判断可变参数传入的类型是否相同
-		if hasVariadic {
-			for i := len(fn.Parameter) - 1; i < len(argument); i++ {
-				if i != len(fn.Parameter)-1 && argument[i].Type() != argument[i-1].Type() {
-					e.Err = &errors.TypeError{
-						Frame:    e.Frame,
-						Message:  "all variadic arguments must be of the same type.",
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
-					}
-					return nil
-				}
-			}
-		}
-
 		// 调用内置函数
 		e.Frame = &frame.Frame{
 			FuncName: fmt.Sprintf("<builtin \"%s\">", fn.Name),
@@ -2703,6 +2749,17 @@ func (e *Evaluator) evalRangeExpression(rangeExpression *ast.RangeExpression, en
 	return &object.List{Elements: rangeList}
 }
 
+// evalContainsExpression 处理包含表达式节点
+// 解释包含表达式
+//
+// 参数:
+//
+//	containsExpression - 包含表达式节点
+//	env - 执行环境
+//
+// 返回值:
+//
+//	object.Object - 包含表达式的结果，发生错误时返回nil
 func (e *Evaluator) evalContainsExpression(containsExpression *ast.ContainsExpression, env *object.Environment) object.Object {
 	// 评估目标表达式
 	target := e.Eval(containsExpression.Target, env)
@@ -2714,7 +2771,7 @@ func (e *Evaluator) evalContainsExpression(containsExpression *ast.ContainsExpre
 	if e.Err != nil {
 		return nil
 	}
-	if _, ok := target.(indexable); !ok {
+	if _, ok := target.(object.Indexable); !ok {
 		e.Err = &errors.TypeError{
 			Frame:    e.Frame,
 			Message:  fmt.Sprintf("the type \"%s\" is not supported for contains operation.", target.Type()),
@@ -2748,7 +2805,73 @@ func (e *Evaluator) evalContainsExpression(containsExpression *ast.ContainsExpre
 			return nil
 		}
 		return &object.Bool{Value: strings.Contains(tar.Value, str.Value)}
+	case *object.Map:
+		hashable, ok := query.(object.Hashable)
+		if !ok {
+			e.Err = &errors.TypeError{
+				Frame:    e.Frame,
+				Message:  "the query must be a hashable type.",
+				PosStart: containsExpression.PosStart,
+				PosEnd:   containsExpression.PosEnd,
+			}
+			return nil
+		}
+		hashKey := object.HashKey{
+			Type:  hashable.Type(),
+			Value: hashable.Hash(),
+		}
+		_, ok = tar.Pairs[hashKey]
+		return &object.Bool{Value: ok}
 	default:
 		return &object.Bool{Value: false}
+	}
+}
+
+// evalMapExpression 处理映射表达式节点
+// 解释映射表达式
+//
+// 参数:
+//
+//	mapExpression - 映射表达式节点
+//	env - 执行环境
+//
+// 返回值:
+//
+//	object.Object - 映射表达式的结果，发生错误时返回nil
+func (e *Evaluator) evalMapExpression(mapExpression *ast.MapExpression, env *object.Environment) object.Object {
+	pairs := make(map[object.HashKey]object.Pair)
+	for _, pair := range mapExpression.Pairs {
+		// 评估键表达式
+		key := e.Eval(pair[0], env)
+		if e.Err != nil {
+			return nil
+		}
+		// 检查键是否为可哈希类型
+		if _, ok := key.(object.Hashable); !ok {
+			e.Err = &errors.TypeError{
+				Frame:    e.Frame,
+				Message:  fmt.Sprintf("the type \"%s\" is not supported for map key.", key.Type()),
+				PosStart: mapExpression.PosStart,
+				PosEnd:   mapExpression.PosEnd,
+			}
+			return nil
+		}
+		// 评估值表达式
+		value := e.Eval(pair[1], env)
+		if e.Err != nil {
+			return nil
+		}
+		// 设置映射键值对
+		hash := key.(object.Hashable).Hash()
+		pairs[object.HashKey{
+			Type:  key.Type(),
+			Value: hash,
+		}] = object.Pair{
+			Key:   key,
+			Value: value,
+		}
+	}
+	return &object.Map{
+		Pairs: pairs,
 	}
 }

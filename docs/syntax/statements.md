@@ -37,9 +37,10 @@ for var i = 0; i < 10; i = i + 1 {
 **语法定义：**
 ```
 FunctionDeclarationStatement ::= "func" Identifier "(" (ParameterList)? ")" Statement
-ParameterList ::= NonDefaultParameter ("," NonDefaultParameter)* ("," DefaultParameter ("," DefaultParameter)*)?
+ParameterList ::= NonDefaultParameter ("," NonDefaultParameter)* ("," DefaultParameter ("," DefaultParameter)*)? ("," VariadicParameter)?
 NonDefaultParameter ::= Identifier
 DefaultParameter ::= Identifier "=" Expression
+VariadicParameter ::= "..." Identifier
 ```
 
 **示例：**
@@ -47,11 +48,42 @@ DefaultParameter ::= Identifier "=" Expression
 func add(x, y=0) {
   return x + y;
 };
+
+func foo(...args) {
+  println(args);
+};
+
+func printAll(...args) {
+  foreach var val in args {
+    println(val);
+  };
+};
+
+printAll(1, "hello", true, 3.14);
+// 输出:
+// 1
+// hello
+// true
+// 3.14
+
+func sum(...nums) {
+  var total = 0;
+  foreach var n in nums {
+    total = total + n;
+  };
+  return total;
+};
+
+sum(1, 2, 3, 4, 5);  // 返回 15
 ```
 
 **注意事项：**
 - 函数参数可以是非默认参数或默认参数。
 - 默认参数必须在参数列表的末尾。
+- 可变参数必须是最后一个参数。
+- 可变参数在函数内部作为一个列表使用。
+- 可变参数可以接受任意数量、任意类型的参数。
+- 一个函数只能有一个可变参数。
 
 ## 返回语句(ReturnStatement)
 用于从函数中返回值的语句。
