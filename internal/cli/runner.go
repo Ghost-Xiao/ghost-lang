@@ -13,6 +13,7 @@ import (
 	"github.com/Ghost-Xiao/ghost-lang/internal/frame"
 	"github.com/Ghost-Xiao/ghost-lang/internal/lexer"
 	"github.com/Ghost-Xiao/ghost-lang/internal/object"
+	builtinclass "github.com/Ghost-Xiao/ghost-lang/internal/object/builtin_class"
 	"github.com/Ghost-Xiao/ghost-lang/internal/parser"
 	"github.com/fatih/color"
 )
@@ -87,6 +88,14 @@ func RunFile(fileName string) {
 	}
 	// 加载内置函数
 	for name, builtin := range object.Builtins {
+		env.Store[name] = &object.Symbol{
+			Name:    name,
+			Value:   builtin,
+			IsConst: true,
+		}
+	}
+	// 加载内置类
+	for name, builtin := range builtinclass.BuiltinClasses {
 		env.Store[name] = &object.Symbol{
 			Name:    name,
 			Value:   builtin,

@@ -57,6 +57,10 @@ const (
 	STEP      = "STEP"      // step关键字，步长
 	CONTAINS  = "CONTAINS"  // contains关键字，用于检查是否存在包含关系
 	IMPORT    = "IMPORT"    // import关键字，用于导入其他模块
+	CLASS     = "CLASS"     // class关键字，用于定义类
+	EXTENDS   = "EXTENDS"   // extends关键字，用于继承类
+	THIS      = "THIS"      // this关键字，用于引用当前实例
+	SUPER     = "SUPER"     // super关键字，用于引用父类实例
 
 	// 运算符令牌
 	PLUS         = "PLUS"         // 加号运算符(+)
@@ -131,6 +135,10 @@ var Keywords = map[string]string{
 	"step":      STEP,      // 步长关键字
 	"contains":  CONTAINS,  // contains关键字
 	"import":    IMPORT,    // import关键字
+	"class":     CLASS,     // class关键字
+	"extends":   EXTENDS,   // extends关键字
+	"this":      THIS,      // this关键字
+	"super":     SUPER,     // super关键字
 }
 
 // Operators 操作符映射表，将字符串操作符映射到对应的令牌类型

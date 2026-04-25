@@ -8,8 +8,8 @@ import (
 	"github.com/Ghost-Xiao/ghost-lang/internal/errors"
 	"github.com/Ghost-Xiao/ghost-lang/internal/frame"
 	"github.com/Ghost-Xiao/ghost-lang/internal/lexer"
-	"github.com/Ghost-Xiao/ghost-lang/internal/module"
 	"github.com/Ghost-Xiao/ghost-lang/internal/object"
+	"github.com/Ghost-Xiao/ghost-lang/internal/object/builtin_module"
 	"github.com/Ghost-Xiao/ghost-lang/internal/parser"
 	"github.com/Ghost-Xiao/ghost-lang/internal/parser/ast"
 	"github.com/Ghost-Xiao/ghost-lang/internal/util"
@@ -1060,7 +1060,7 @@ func TestEvaluator_VisitCallExpression(t *testing.T) {
 						nil,
 					},
 					HaveVariadic: false,
-					Fn: func(f *frame.Frame, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
+					Fn: func(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 						switch args[0].(type) {
 						case *object.String:
 							return &object.Int{
@@ -1368,11 +1368,8 @@ func TestEvaluator_MemberAccessExpression(t *testing.T) {
 		Name: "test",
 		Store: map[string]*object.Symbol{
 			"math": {
-				Name: "math",
-				Value: &object.Module{
-					Name: "math",
-					Env:  new(module.Math).Load(),
-				},
+				Name:    "math",
+				Value:   builtin_module.MathModule,
 				IsConst: true,
 			},
 		},

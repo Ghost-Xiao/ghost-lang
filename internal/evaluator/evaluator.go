@@ -9,8 +9,9 @@ import (
 	"github.com/Ghost-Xiao/ghost-lang/internal/errors"
 	"github.com/Ghost-Xiao/ghost-lang/internal/frame"
 	"github.com/Ghost-Xiao/ghost-lang/internal/lexer"
-	"github.com/Ghost-Xiao/ghost-lang/internal/module"
 	"github.com/Ghost-Xiao/ghost-lang/internal/object"
+	builtinclass "github.com/Ghost-Xiao/ghost-lang/internal/object/builtin_class"
+	"github.com/Ghost-Xiao/ghost-lang/internal/object/builtin_module"
 	"github.com/Ghost-Xiao/ghost-lang/internal/parser"
 	"github.com/Ghost-Xiao/ghost-lang/internal/parser/ast"
 	"github.com/Ghost-Xiao/ghost-lang/internal/util"
@@ -19,9 +20,10 @@ import (
 // Evaluator 解释器结构体，负责执行AST节点并管理运行时状态
 // 包含一个错误字段用于捕获和传递运行时错误
 type Evaluator struct {
-	Frame       *frame.Frame   // 调用栈帧
-	Err         error          // 运行时错误信息
-	ModuleCache map[string]int // 模块缓存及其状态，1表示加载中，2表示已加载
+	Frame       *frame.Frame     // 调用栈帧
+	Err         error            // 运行时错误信息
+	ModuleCache map[string]int   // 模块缓存及其状态，1表示加载中，2表示已加载
+	This        *object.Instance // 当前实例对象
 }
 
 // NewEvaluator 创建一个新的解释器实例
@@ -39,6 +41,7 @@ func NewEvaluator(frame *frame.Frame, moduleCache map[string]int) *Evaluator {
 		Frame:       frame,
 		Err:         nil,
 		ModuleCache: moduleCache,
+		This:        nil,
 	}
 }
 
@@ -77,6 +80,8 @@ func (e *Evaluator) Eval(nodes ast.Node, env *object.Environment) object.Object 
 		return e.evalForEachStatement(n, env)
 	case *ast.ImportStatement:
 		return e.evalImportStatement(n, env)
+	case *ast.ClassStatement:
+		return e.evalClassStatement(n, env)
 	case *ast.PrefixExpression:
 		return e.evalPrefixExpression(n, env)
 	case *ast.InfixExpression:
@@ -125,6 +130,10 @@ func (e *Evaluator) Eval(nodes ast.Node, env *object.Environment) object.Object 
 		return e.evalMemberAccessExpression(n, env)
 	case *ast.MapExpression:
 		return e.evalMapExpression(n, env)
+	case *ast.ThisExpression:
+		return e.evalThisExpression(n, env)
+	case *ast.SuperExpression:
+		return e.evalSuperExpression(n, env)
 	default:
 		panic(fmt.Sprintf("unknown node type: %T", n))
 	}
@@ -317,7 +326,7 @@ func (e *Evaluator) evalBreakStatement(breakStatement *ast.BreakStatement, env *
 			inLoop = true
 			break
 		}
-		if e.Name == "function" {
+		if e.Name == "function" || e.Name == "method" {
 			break
 		}
 	}
@@ -350,7 +359,7 @@ func (e *Evaluator) evalContinueStatement(continueStatement *ast.ContinueStateme
 			inLoop = true
 			break
 		}
-		if e.Name == "function" {
+		if e.Name == "function" || e.Name == "method" {
 			break
 		}
 	}
@@ -480,10 +489,91 @@ func (e *Evaluator) evalMemberAccessExpression(memberAccessExpression *ast.Membe
 		return nil
 	}
 	member := memberAccessExpression.Member.(*ast.IdentifierExpression).Name
-	// 判断是否是模块
-	if mod, ok := target.(*object.Module); ok {
+	switch t := target.(type) {
+	case *object.Module:
 		// 获取成员
-		ret, ok := mod.Env.Get(member)
+		ret, ok := t.Env.Get(member)
+		if !ok {
+			// 获取内置成员
+			ret, ok = builtinclass.BuiltinClasses["Module"].Member.Get(member)
+			if !ok {
+				e.Err = &errors.VariableError{
+					Frame:    e.Frame,
+					Message:  fmt.Sprintf("undefined member \"%s\".", member),
+					PosStart: memberAccessExpression.PosStart,
+					PosEnd:   memberAccessExpression.PosEnd,
+				}
+				return nil
+			}
+			if _, ok := ret.Value.(*object.Method); ok {
+				return &object.BoundBuiltinMethod{
+					Function: ret.Value.(*object.Method),
+					Receiver: t,
+				}
+			} else {
+				return ret.Value
+			}
+		}
+		return ret.Value
+	case *object.Instance:
+		// 获取成员
+		ret, ok := t.Member.Get(member)
+		if !ok {
+			// 获取内置成员
+			ret, ok = builtinclass.BuiltinClasses["Instance"].Member.Get(member)
+			if !ok {
+				e.Err = &errors.VariableError{
+					Frame:    e.Frame,
+					Message:  fmt.Sprintf("undefined member \"%s\".", member),
+					PosStart: memberAccessExpression.PosStart,
+					PosEnd:   memberAccessExpression.PosEnd,
+				}
+				return nil
+			}
+			if _, ok := ret.Value.(*object.Method); ok {
+				return &object.BoundBuiltinMethod{
+					Function: ret.Value.(*object.Method),
+					Receiver: t,
+				}
+			} else {
+				return ret.Value
+			}
+		}
+		return ret.Value
+	case *object.Super:
+		// 获取父类
+		parent := t.Parent
+		if parent == nil {
+			e.Err = &errors.TypeError{
+				Frame:    e.Frame,
+				Message:  "super must be used inside method.",
+				PosStart: memberAccessExpression.PosStart,
+				PosEnd:   memberAccessExpression.PosEnd,
+			}
+			return nil
+		}
+		// 在父类中获取方法
+		for p := parent; p != nil; p = p.Parent {
+			ret, ok := p.Member.Get(member)
+			if ok {
+				// 将方法绑定到当前实例
+				return &object.Method{
+					Name:     ret.Value.(*object.Function).Name,
+					Function: ret.Value.(*object.Function),
+					Instance: t.Instance,
+				}
+			}
+		}
+		e.Err = &errors.TypeError{
+			Frame:    e.Frame,
+			Message:  fmt.Sprintf("undefined method \"%s\" in parent classes.", member),
+			PosStart: memberAccessExpression.PosStart,
+			PosEnd:   memberAccessExpression.PosEnd,
+		}
+		return nil
+	case *object.Int, *object.String, *object.List, *object.Map, *object.Namespace, *object.Class, *object.Function, *object.Method:
+		// 获取内置成员
+		ret, ok := builtinclass.BuiltinClasses[t.Type()].Member.Get(member)
 		if !ok {
 			e.Err = &errors.VariableError{
 				Frame:    e.Frame,
@@ -493,24 +583,14 @@ func (e *Evaluator) evalMemberAccessExpression(memberAccessExpression *ast.Membe
 			}
 			return nil
 		}
-		return ret.Value
-	} else if mod, ok := target.(object.BuiltinModule); ok {
-		// 获取成员
-		ret, ok := mod.Load().Get(member)
-		if !ok {
-			e.Err = &errors.VariableError{
-				Frame:    e.Frame,
-				Message:  fmt.Sprintf("undefined member \"%s\".", member),
-				PosStart: memberAccessExpression.PosStart,
-				PosEnd:   memberAccessExpression.PosEnd,
-			}
-			return nil
+		return &object.BoundBuiltinMethod{
+			Function: ret.Value.(*object.Method),
+			Receiver: t,
 		}
-		return ret.Value
-	} else {
+	default:
 		e.Err = &errors.VariableError{
 			Frame:    e.Frame,
-			Message:  "target must be module.",
+			Message:  "target must be module or instance.",
 			PosStart: memberAccessExpression.PosStart,
 			PosEnd:   memberAccessExpression.PosEnd,
 		}
@@ -965,7 +1045,27 @@ func (e *Evaluator) evalImportStatement(importStatement *ast.ImportStatement, en
 	}
 	moduleBaseName := moduleNameStr[:len(moduleNameStr)-3]
 	// 检查模块是否已加载
-	if state, ok := e.ModuleCache[moduleBaseName]; ok {
+	var cacheKey string
+	// 检查是否是内置模块
+	if _, ok := builtin_module.Modules[moduleBaseName]; ok {
+		cacheKey = moduleBaseName
+	} else {
+		// 对于用户模块，先转换为绝对路径再检查
+		var err error
+		cacheKey, err = filepath.Abs(moduleNameStr)
+		if err != nil {
+			e.Err = &errors.ModuleError{
+				Frame:    e.Frame,
+				Message:  fmt.Sprintf("failed to convert module name to absolute path: \"%s\"", moduleNameStr),
+				PosStart: importStatement.PosStart,
+				PosEnd:   importStatement.PosEnd,
+			}
+			return nil
+		}
+	}
+
+	// 检查模块是否已加载
+	if state, ok := e.ModuleCache[cacheKey]; ok {
 		if state == 2 {
 			return nil
 		}
@@ -979,7 +1079,7 @@ func (e *Evaluator) evalImportStatement(importStatement *ast.ImportStatement, en
 				}
 			}
 			// 添加当前模块到导入链
-			importChain = append(importChain, moduleBaseName)
+			importChain = append(importChain, cacheKey)
 			e.Err = &errors.ModuleError{
 				Frame:    e.Frame,
 				Message:  fmt.Sprintf("circular import detected: %s", strings.Join(importChain, " -> ")),
@@ -1000,7 +1100,7 @@ func (e *Evaluator) evalImportStatement(importStatement *ast.ImportStatement, en
 		return nil
 	}
 	// 如果是内置模块
-	if mod, ok := module.BuiltinModules[moduleBaseName]; ok {
+	if mod, ok := builtin_module.Modules[moduleBaseName]; ok {
 		moduleSym := &object.Symbol{
 			Name:    moduleBaseName,
 			Value:   mod,
@@ -1009,20 +1109,11 @@ func (e *Evaluator) evalImportStatement(importStatement *ast.ImportStatement, en
 		// 绑定模块
 		env.Set(moduleBaseName, moduleSym)
 		// 将模块缓存为已加载状态
-		e.ModuleCache[moduleBaseName] = 2
+		e.ModuleCache[cacheKey] = 2
 		return nil
 	}
-	// 将模块名转换为绝对路径
-	modulePath, err := filepath.Abs(moduleNameStr)
-	if err != nil {
-		e.Err = &errors.ModuleError{
-			Frame:    e.Frame,
-			Message:  fmt.Sprintf("failed to convert module name to absolute path: \"%s\"", moduleNameStr),
-			PosStart: importStatement.PosStart,
-			PosEnd:   importStatement.PosEnd,
-		}
-		return nil
-	}
+	// 使用绝对路径
+	modulePath := cacheKey
 	// 读取模块文件
 	moduleContent, err := os.ReadFile(modulePath)
 	if err != nil {
@@ -1035,7 +1126,7 @@ func (e *Evaluator) evalImportStatement(importStatement *ast.ImportStatement, en
 		return nil
 	}
 	// 将模块状态设置为加载中
-	e.ModuleCache[moduleBaseName] = 1
+	e.ModuleCache[cacheKey] = 1
 	// 解析模块内容
 	code := strings.ReplaceAll(string(moduleContent), "\t", "    ")
 	baseName := filepath.Base(modulePath)
@@ -1058,6 +1149,14 @@ func (e *Evaluator) evalImportStatement(importStatement *ast.ImportStatement, en
 	}
 	// 加载内置函数
 	for name, builtin := range object.Builtins {
+		moduleEnv.Store[name] = &object.Symbol{
+			Name:    name,
+			Value:   builtin,
+			IsConst: true,
+		}
+	}
+	// 加载内置类
+	for name, builtin := range builtinclass.BuiltinClasses {
 		moduleEnv.Store[name] = &object.Symbol{
 			Name:    name,
 			Value:   builtin,
@@ -1094,7 +1193,134 @@ func (e *Evaluator) evalImportStatement(importStatement *ast.ImportStatement, en
 	}
 	env.Set(moduleBaseName, moduleSym)
 	// 将模块缓存为已加载状态
-	e.ModuleCache[moduleBaseName] = 2
+	e.ModuleCache[cacheKey] = 2
+	return nil
+}
+
+// evalClassStatement 处理类语句节点
+// 创建一个新的类环境
+//
+// 参数:
+//
+//	classStatement - 类语句节点
+//	env - 执行环境
+//
+// 返回值:
+//
+//	object.Object
+func (e *Evaluator) evalClassStatement(classStatement *ast.ClassStatement, env *object.Environment) object.Object {
+	name := classStatement.Name.(*ast.IdentifierExpression).Name
+	// 是否已定义过类
+	if _, ok := env.Get(name); ok {
+		e.Err = &errors.VariableError{
+			Frame:    e.Frame,
+			Message:  fmt.Sprintf("class \"%s\" already defined.", name),
+			PosStart: classStatement.PosStart,
+			PosEnd:   classStatement.PosEnd,
+		}
+		return nil
+	}
+	// 创建新环境
+	classEnv := &object.Environment{
+		Name:  name,
+		Store: make(map[string]*object.Symbol),
+		Outer: env,
+	}
+	// 执行类体
+	switch n := classStatement.Body.(type) {
+	case *ast.ExpressionStatement:
+		switch expr := n.Expr.(type) {
+		case *ast.BlockExpression:
+			for _, stmt := range expr.Statements {
+				switch s := stmt.(type) {
+				case *ast.ExpressionStatement:
+					if _, ok := s.Expr.(ast.Definition); !ok {
+						e.Err = &errors.SyntaxError{
+							Message:  "class body must be definitions.",
+							PosStart: classStatement.PosStart,
+							PosEnd:   classStatement.PosEnd,
+						}
+						return nil
+					}
+				default:
+					if _, ok := s.(ast.Definition); !ok {
+						e.Err = &errors.SyntaxError{
+							Message:  "class body must be definitions.",
+							PosStart: classStatement.PosStart,
+							PosEnd:   classStatement.PosEnd,
+						}
+						return nil
+					}
+				}
+				e.Eval(stmt, classEnv)
+				if e.Err != nil {
+					return nil
+				}
+			}
+		default:
+			if _, ok := expr.(ast.Definition); !ok {
+				e.Err = &errors.SyntaxError{
+					Message:  "class body must be definitions.",
+					PosStart: classStatement.PosStart,
+					PosEnd:   classStatement.PosEnd,
+				}
+				return nil
+			}
+			e.Eval(expr, classEnv)
+			if e.Err != nil {
+				return nil
+			}
+		}
+	default:
+		if _, ok := n.(ast.Definition); !ok {
+			e.Err = &errors.SyntaxError{
+				Message:  "class body must be definitions.",
+				PosStart: classStatement.PosStart,
+				PosEnd:   classStatement.PosEnd,
+			}
+			return nil
+		}
+		e.Eval(n, classEnv)
+		if e.Err != nil {
+			return nil
+		}
+	}
+	if e.Err != nil {
+		return nil
+	}
+	// 检查是否有父类
+	var parent *object.Class = nil
+	if classStatement.Extends != nil {
+		// 评估父类
+		extends := e.Eval(classStatement.Extends, env)
+		if e.Err != nil {
+			return nil
+		}
+		// 检查父类是否为类
+		if _, ok := extends.(*object.Class); !ok {
+			e.Err = &errors.TypeError{
+				Frame:    e.Frame,
+				Message:  fmt.Sprintf("parent class \"%s\" must be a class.", classStatement.Extends.String()),
+				PosStart: classStatement.PosStart,
+				PosEnd:   classStatement.PosEnd,
+			}
+			return nil
+		}
+		parent = extends.(*object.Class)
+	}
+	// 创建类对象
+	class := &object.Class{
+		Name:   name,
+		Parent: parent,
+		Member: classEnv,
+	}
+	sym := &object.Symbol{
+		Name:    name,
+		Value:   class,
+		IsConst: true,
+	}
+	// 绑定类
+	env.Set(name, sym)
 	return nil
 }
 
@@ -1257,10 +1483,16 @@ func (e *Evaluator) evalVarInitializationExpression(varInitialization *ast.VarIn
 			}
 			return nil
 		}
-		// 计算并赋值
-		val := e.Eval(varInitialization.Value, env)
-		if e.Err != nil {
-			return nil
+		// 如果没有值，默认赋值为null
+		var val object.Object
+		if varInitialization.Value == nil {
+			val = &object.Null{}
+		} else {
+			// 评估值
+			val = e.Eval(varInitialization.Value, env)
+			if e.Err != nil {
+				return nil
+			}
 		}
 		// 创建符号
 		var sym = &object.Symbol{
@@ -1271,11 +1503,38 @@ func (e *Evaluator) evalVarInitializationExpression(varInitialization *ast.VarIn
 		env.Set(varName, sym)
 		return val
 	case *ast.ListExpression:
-		// 判断右侧是否是列表
-		val := e.Eval(varInitialization.Value, env)
-		if e.Err != nil {
-			return nil
+		// 如果没有值，默认赋值为null
+		var val object.Object
+		if varInitialization.Value == nil {
+			// 逐个赋值
+			for _, varExpr := range varInitialization.Name.(*ast.ListExpression).Value {
+				varName := varExpr.(*ast.IdentifierExpression).Name
+				// 检查变量是否已定义
+				if env.Exists(varName) {
+					e.Err = &errors.VariableError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("variable \"%s\" already defined.", varName),
+						PosStart: varInitialization.PosStart,
+						PosEnd:   varInitialization.PosEnd,
+					}
+					return nil
+				}
+				env.Set(varName, &object.Symbol{
+					Name:    varName,
+					Value:   &object.Null{},
+					IsConst: varInitialization.IsConst,
+				})
+			}
+			return &object.List{
+				Elements: make([]object.Object, 0, len(varInitialization.Name.(*ast.ListExpression).Value)),
+			}
+		} else {
+			val = e.Eval(varInitialization.Value, env)
+			if e.Err != nil {
+				return nil
+			}
 		}
+		// 判断右侧是否是列表
 		if val.Type() != "List" {
 			e.Err = &errors.TypeError{
 				Frame:    e.Frame,
@@ -1344,6 +1603,7 @@ func (e *Evaluator) evalVarInitializationExpression(varInitialization *ast.VarIn
 func (e *Evaluator) getSymbol(expr ast.Expression, env *object.Environment, posStart, posEnd *util.Pos) (*object.Symbol, error) {
 	switch ex := expr.(type) {
 	case *ast.IdentifierExpression:
+		// 处理标识符表达式，直接从环境中获取符号
 		sym, ok := env.Get(ex.Name)
 		if !ok {
 			return nil, &errors.VariableError{
@@ -1355,10 +1615,12 @@ func (e *Evaluator) getSymbol(expr ast.Expression, env *object.Environment, posS
 		}
 		return sym, nil
 	case *ast.NamespaceAccessExpression:
+		// 处理命名空间访问表达式
 		tar := e.Eval(ex.Target, env)
 		if e.Err != nil {
 			return nil, e.Err
 		}
+		// 检查成员是否为标识符
 		if _, ok := ex.Member.(*ast.IdentifierExpression); !ok {
 			return nil, &errors.TypeError{
 				Frame:    e.Frame,
@@ -1368,6 +1630,7 @@ func (e *Evaluator) getSymbol(expr ast.Expression, env *object.Environment, posS
 			}
 		}
 		member := ex.Member.(*ast.IdentifierExpression).Name
+		// 从命名空间中获取成员
 		if namespace, ok := tar.(*object.Namespace); ok {
 			ret, ok := namespace.Member.Get(member)
 			if !ok {
@@ -1380,6 +1643,7 @@ func (e *Evaluator) getSymbol(expr ast.Expression, env *object.Environment, posS
 			}
 			return ret, nil
 		}
+		// 目标不是命名空间，返回错误
 		return nil, &errors.VariableError{
 			Frame:    e.Frame,
 			Message:  "target must be namespace.",
@@ -1387,10 +1651,12 @@ func (e *Evaluator) getSymbol(expr ast.Expression, env *object.Environment, posS
 			PosEnd:   posEnd,
 		}
 	case *ast.MemberAccessExpression:
+		// 处理成员访问表达式
 		tar := e.Eval(ex.Target, env)
 		if e.Err != nil {
 			return nil, e.Err
 		}
+		// 检查成员是否为标识符
 		if _, ok := ex.Member.(*ast.IdentifierExpression); !ok {
 			return nil, &errors.TypeError{
 				Frame:    e.Frame,
@@ -1400,6 +1666,7 @@ func (e *Evaluator) getSymbol(expr ast.Expression, env *object.Environment, posS
 			}
 		}
 		member := ex.Member.(*ast.IdentifierExpression).Name
+		// 从模块中获取成员
 		if module, ok := tar.(*object.Module); ok {
 			ret, ok := module.Env.Get(member)
 			if !ok {
@@ -1411,14 +1678,28 @@ func (e *Evaluator) getSymbol(expr ast.Expression, env *object.Environment, posS
 				}
 			}
 			return ret, nil
+		} else if instance, ok := tar.(*object.Instance); ok {
+			// 从实例中获取成员
+			ret, ok := instance.Member.Get(member)
+			if !ok {
+				return nil, &errors.VariableError{
+					Frame:    e.Frame,
+					Message:  fmt.Sprintf("undefined member \"%s\".", member),
+					PosStart: posStart,
+					PosEnd:   posEnd,
+				}
+			}
+			return ret, nil
 		}
+		// 目标既不是模块也不是实例，返回错误
 		return nil, &errors.VariableError{
 			Frame:    e.Frame,
-			Message:  "target must be module.",
+			Message:  "target must be module or instance.",
 			PosStart: posStart,
 			PosEnd:   posEnd,
 		}
 	default:
+		// 不支持的表达式类型，返回错误
 		return nil, &errors.TypeError{
 			Frame:    e.Frame,
 			Message:  "invalid variable name type.",
@@ -1590,6 +1871,15 @@ func (e *Evaluator) assign(lvalue ast.Expression, env *object.Environment, posSt
 			}
 			if module, ok := tar.(*object.Module); ok {
 				module.Env.Set(sym.Name, newSym)
+			} else if instance, ok := tar.(*object.Instance); ok {
+				instance.Member.Set(sym.Name, newSym)
+			} else {
+				return nil, &errors.VariableError{
+					Frame:    e.Frame,
+					Message:  "target must be module or instance.",
+					PosStart: posStart,
+					PosEnd:   posEnd,
+				}
 			}
 		}
 		return result, nil
@@ -1768,7 +2058,7 @@ func (e *Evaluator) evalCompoundAssignmentExpression(compoundAssignmentExpressio
 			Right:    compoundAssignmentExpression.Right,
 			PosStart: compoundAssignmentExpression.PosStart,
 			PosEnd:   compoundAssignmentExpression.PosEnd,
-		}, current, right)
+		}, current, right, env)
 	})
 
 	if err != nil {
@@ -1798,44 +2088,95 @@ func (e *Evaluator) evalPrefixExpression(prefixExpression *ast.PrefixExpression,
 	if e.Err != nil {
 		return nil
 	}
-	val := e.evalPrefixOperator(prefixExpression, right)
+	val := e.evalPrefixOperator(prefixExpression, right, env)
 	if e.Err != nil {
 		return nil
 	}
 	return val
 }
 
-func (e *Evaluator) evalPrefixOperator(prefixExpression *ast.PrefixExpression, right object.Object) object.Object {
+// evalPrefixOperator 处理前缀运算符节点
+// 执行前缀运算符(如!、-)运算
+//
+// 参数:
+//
+//	prefixExpression - 前缀表达式节点
+//	right - 右操作数
+//
+// 返回值:
+//
+//	object.Object - 运算结果，发生错误时返回nil
+//
+// 错误处理:
+//
+//	若运算符不支持，设置errors.OperationError并返回nil
+//	若操作数类型错误，设置errors.TypeError并返回nil
+func (e *Evaluator) evalPrefixOperator(prefixExpression *ast.PrefixExpression, right object.Object, env *object.Environment) object.Object {
 	switch prefixExpression.Operator.Type {
 	case lexer.MINUS:
 		val, err := right.Negative(prefixExpression.PosStart, prefixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
-			return nil
+		if err == nil {
+			return val
 		}
-		return val
 	case lexer.BANG:
 		val, err := right.Not(prefixExpression.PosStart, prefixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
-			return nil
+		if err == nil {
+			return val
 		}
-		return val
 	case lexer.BITWISE_NOT:
 		val, err := right.BitNot(prefixExpression.PosStart, prefixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
+		if err == nil {
+			return val
+		}
+	}
+	// 寻找运算符重载
+	overloadMap := map[string]string{
+		lexer.MINUS:       "__neg__",
+		lexer.BANG:        "__not__",
+		lexer.BITWISE_NOT: "__bnot__",
+	}
+	// 检查右操作数是否为实例
+	if instance, ok := right.(*object.Instance); ok {
+		overload, ok := instance.Member.Get(overloadMap[prefixExpression.Operator.Type])
+		if !ok {
+			e.Err = &errors.OperationError{
+				Frame:    e.Frame,
+				Message:  fmt.Sprintf("operator \"%s\" not overloaded for type %s.", prefixExpression.Operator.Type, right.Type()),
+				PosStart: prefixExpression.PosStart,
+				PosEnd:   prefixExpression.PosEnd,
+			}
 			return nil
 		}
-		return val
-	default:
-		e.Err = &errors.OperationError{
-			Message:  fmt.Sprintf("invalid operation \"%s\".", prefixExpression.Operator.Type),
-			PosStart: prefixExpression.PosStart,
-			PosEnd:   prefixExpression.PosEnd,
+		if overloadMethod, ok := overload.Value.(*object.Method); ok {
+			ret := e.evalCallFunction(overloadMethod, &ast.CallExpression{
+				Function: &ast.MemberAccessExpression{
+					Target: prefixExpression.Value,
+					Member: &ast.IdentifierExpression{
+						Name:     overloadMethod.Name,
+						PosStart: prefixExpression.PosStart,
+						PosEnd:   prefixExpression.PosEnd,
+					},
+					PosStart: prefixExpression.PosStart,
+					PosEnd:   prefixExpression.PosEnd,
+				},
+				Argument: []ast.Expression{},
+				IsUnpack: []bool{},
+				PosStart: prefixExpression.PosStart,
+				PosEnd:   prefixExpression.PosEnd,
+			}, env)
+			if e.Err != nil {
+				return nil
+			}
+			return ret
 		}
-		return nil
 	}
+	// 不支持的运算符
+	e.Err = &errors.OperationError{
+		Message:  fmt.Sprintf("invalid operation \"%s\".", prefixExpression.Operator.Type),
+		PosStart: prefixExpression.PosStart,
+		PosEnd:   prefixExpression.PosEnd,
+	}
+	return nil
 }
 
 // evalPrefixUnaryIncDecExpression 处理前缀自增 / 自减表达式节点
@@ -1878,7 +2219,7 @@ func (e *Evaluator) evalPrefixUnaryIncDecExpression(prefixUnaryIncDecExpression 
 			},
 			PosStart: prefixUnaryIncDecExpression.PosStart,
 			PosEnd:   prefixUnaryIncDecExpression.PosEnd,
-		}, current, &object.Int{Value: 1})
+		}, current, &object.Int{Value: 1}, env)
 	})
 
 	if err != nil {
@@ -1931,7 +2272,7 @@ func (e *Evaluator) evalPostfixUnaryIncDecExpression(postfixUnaryIncDecExpressio
 			},
 			PosStart: postfixUnaryIncDecExpression.PosStart,
 			PosEnd:   postfixUnaryIncDecExpression.PosEnd,
-		}, current, &object.Int{Value: 1})
+		}, current, &object.Int{Value: 1}, env)
 	})
 
 	if err != nil {
@@ -2003,149 +2344,233 @@ func (e *Evaluator) evalInfixExpression(infixExpression *ast.InfixExpression, en
 	if e.Err != nil {
 		return nil
 	}
-	val := e.evalInfixOperator(infixExpression, left, right)
+	val := e.evalInfixOperator(infixExpression, left, right, env)
 	if e.Err != nil {
 		return nil
 	}
 	return val
 }
 
-func (e *Evaluator) evalInfixOperator(infixExpression *ast.InfixExpression, left, right object.Object) object.Object {
+// evalInfixOperator 处理中缀运算符
+// 执行中缀运算符(如+、-、*、/、&&、||等)运算
+//
+// 参数:
+//
+//	infixExpression - 中缀表达式节点
+//	left - 左侧值
+//	right - 右侧值
+//	env - 执行环境
+//
+// 返回值:
+//
+//	object.Object - 运算结果，发生错误时返回nil
+func (e *Evaluator) evalInfixOperator(infixExpression *ast.InfixExpression, left, right object.Object, env *object.Environment) object.Object {
 	switch infixExpression.Operator.Type {
 	case lexer.PLUS:
 		val, err := left.Add(right, infixExpression.PosStart, infixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
-			return nil
+		if err == nil {
+			return val
 		}
-		return val
 	case lexer.MINUS:
 		val, err := left.Subtract(right, infixExpression.PosStart, infixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
-			return nil
+		if err == nil {
+			return val
 		}
-		return val
 	case lexer.ASTERISK:
 		val, err := left.Multiply(right, infixExpression.PosStart, infixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
-			return nil
+		if err == nil {
+			return val
 		}
-		return val
 	case lexer.SLASH:
 		val, err := left.Divide(right, infixExpression.PosStart, infixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
-			return nil
+		if err == nil {
+			return val
 		}
-		return val
 	case lexer.PERCENT:
 		val, err := left.Mod(right, infixExpression.PosStart, infixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
-			return nil
+		if err == nil {
+			return val
 		}
-		return val
 	case lexer.EQUALS:
 		val, err := left.Equal(right, infixExpression.PosStart, infixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
-			return nil
+		if err == nil {
+			return val
 		}
-		return val
 	case lexer.NOT_EQUALS:
 		val, err := left.NotEqual(right, infixExpression.PosStart, infixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
-			return nil
+		if err == nil {
+			return val
 		}
-		return val
 	case lexer.LT:
 		val, err := left.LessThan(right, infixExpression.PosStart, infixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
-			return nil
+		if err == nil {
+			return val
 		}
-		return val
 	case lexer.GT:
 		val, err := left.GreaterThan(right, infixExpression.PosStart, infixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
-			return nil
+		if err == nil {
+			return val
 		}
-		return val
 	case lexer.LTE:
 		val, err := left.LessThanOrEqual(right, infixExpression.PosStart, infixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
-			return nil
+		if err == nil {
+			return val
 		}
-		return val
 	case lexer.GTE:
 		val, err := left.GreaterThanOrEqual(right, infixExpression.PosStart, infixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
-			return nil
+		if err == nil {
+			return val
 		}
-		return val
 	case lexer.BITWISE_AND:
 		val, err := left.BitAnd(right, infixExpression.PosStart, infixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
-			return nil
+		if err == nil {
+			return val
 		}
-		return val
 	case lexer.BITWISE_OR:
 		val, err := left.BitOr(right, infixExpression.PosStart, infixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
-			return nil
+		if err == nil {
+			return val
 		}
-		return val
 	case lexer.BITWISE_XOR:
 		val, err := left.Xor(right, infixExpression.PosStart, infixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
-			return nil
+		if err == nil {
+			return val
 		}
-		return val
 	case lexer.LEFT_SHIFT:
 		val, err := left.LeftShift(right, infixExpression.PosStart, infixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
-			return nil
+		if err == nil {
+			return val
 		}
-		return val
 	case lexer.RIGHT_SHIFT:
 		val, err := left.RightShift(right, infixExpression.PosStart, infixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
-			return nil
+		if err == nil {
+			return val
 		}
-		return val
 	case lexer.LOGICAL_AND:
 		val, err := left.And(right, infixExpression.PosStart, infixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
-			return nil
+		if err == nil {
+			return val
 		}
-		return val
 	case lexer.LOGICAL_OR:
 		val, err := left.Or(right, infixExpression.PosStart, infixExpression.PosEnd, e.Frame)
-		if err != nil {
-			e.Err = err
+		if err == nil {
+			return val
+		}
+	}
+	// 寻找运算符重载
+	overloadMap := map[string]string{
+		lexer.PLUS:        "__add__",
+		lexer.MINUS:       "__sub__",
+		lexer.ASTERISK:    "__mul__",
+		lexer.SLASH:       "__div__",
+		lexer.PERCENT:     "__mod__",
+		lexer.EQUALS:      "__eq__",
+		lexer.NOT_EQUALS:  "__ne__",
+		lexer.LT:          "__lt__",
+		lexer.GT:          "__gt__",
+		lexer.LTE:         "__le__",
+		lexer.GTE:         "__ge__",
+		lexer.BITWISE_AND: "__and__",
+		lexer.BITWISE_OR:  "__or__",
+		lexer.BITWISE_XOR: "__xor__",
+		lexer.LEFT_SHIFT:  "__lshift__",
+		lexer.RIGHT_SHIFT: "__rshift__",
+		lexer.LOGICAL_AND: "__land__",
+		lexer.LOGICAL_OR:  "__lor__",
+	}
+	// 检查左操作数是否为实例
+	if instance, ok := left.(*object.Instance); ok {
+		overload, ok := instance.Member.Get(overloadMap[infixExpression.Operator.Type])
+		if !ok {
+			e.Err = &errors.OperationError{
+				Frame:    e.Frame,
+				Message:  fmt.Sprintf("operator \"%s\" not overloaded for types %s and %s.", infixExpression.Operator.Type, left.Type(), right.Type()),
+				PosStart: infixExpression.PosStart,
+				PosEnd:   infixExpression.PosEnd,
+			}
 			return nil
 		}
-		return val
-	default:
-		e.Err = &errors.OperationError{
-			Message:  fmt.Sprintf("invalid operation \"%s\".", infixExpression.Operator.Type),
-			PosStart: infixExpression.PosStart,
-			PosEnd:   infixExpression.PosEnd,
+		if overloadMethod, ok := overload.Value.(*object.Method); ok {
+			ret := e.evalCallFunction(overloadMethod, &ast.CallExpression{
+				Function: &ast.MemberAccessExpression{
+					Target: infixExpression.Left,
+					Member: &ast.IdentifierExpression{
+						Name:     overloadMethod.Name,
+						PosStart: infixExpression.PosStart,
+						PosEnd:   infixExpression.PosEnd,
+					},
+					PosStart: infixExpression.PosStart,
+					PosEnd:   infixExpression.PosEnd,
+				},
+				Argument: []ast.Expression{infixExpression.Right},
+				IsUnpack: []bool{false},
+				PosStart: infixExpression.PosStart,
+				PosEnd:   infixExpression.PosEnd,
+			}, env)
+			if e.Err != nil {
+				return nil
+			}
+			return ret
+		} else {
+			e.Err = &errors.OperationError{
+				Frame:    e.Frame,
+				Message:  fmt.Sprintf("operator \"%s\" not overloaded for types %s and %s.", infixExpression.Operator.Type, left.Type(), right.Type()),
+				PosStart: infixExpression.PosStart,
+				PosEnd:   infixExpression.PosEnd,
+			}
+			return nil
 		}
-		return nil
 	}
+	// 检查右操作数是否为实例
+	if instance, ok := right.(*object.Instance); ok {
+		overload, ok := instance.Member.Get("__r" + overloadMap[infixExpression.Operator.Type][2:])
+		if !ok {
+			e.Err = &errors.OperationError{
+				Frame:    e.Frame,
+				Message:  fmt.Sprintf("operator \"%s\" not overloaded for types %s and %s.", infixExpression.Operator.Type, left.Type(), right.Type()),
+				PosStart: infixExpression.PosStart,
+				PosEnd:   infixExpression.PosEnd,
+			}
+			return nil
+		}
+		if overloadMethod, ok := overload.Value.(*object.Method); ok {
+			ret := e.evalCallFunction(overloadMethod, &ast.CallExpression{
+				Function: &ast.MemberAccessExpression{
+					Target: infixExpression.Right,
+					Member: &ast.IdentifierExpression{
+						Name:     overloadMethod.Name,
+						PosStart: infixExpression.PosStart,
+						PosEnd:   infixExpression.PosEnd,
+					},
+					PosStart: infixExpression.PosStart,
+					PosEnd:   infixExpression.PosEnd,
+				},
+				Argument: []ast.Expression{infixExpression.Left},
+				IsUnpack: []bool{false},
+				PosStart: infixExpression.PosStart,
+				PosEnd:   infixExpression.PosEnd,
+			}, env)
+			if e.Err != nil {
+				return nil
+			}
+			return ret
+		} else {
+			e.Err = &errors.OperationError{
+				Frame:    e.Frame,
+				Message:  fmt.Sprintf("operator \"%s\" not overloaded for types %s and %s.", infixExpression.Operator.Type, left.Type(), right.Type()),
+				PosStart: infixExpression.PosStart,
+				PosEnd:   infixExpression.PosEnd,
+			}
+			return nil
+		}
+	}
+	e.Err = &errors.OperationError{
+		Frame:    e.Frame,
+		Message:  fmt.Sprintf("invalid operation \"%s\".", infixExpression.Operator.Type),
+		PosStart: infixExpression.PosStart,
+		PosEnd:   infixExpression.PosEnd,
+	}
+	return nil
 }
 
 func (e *Evaluator) evalWithSpecialValue(node ast.Node, env *object.Environment) object.Object {
@@ -2271,216 +2696,444 @@ func (e *Evaluator) evalIfExpression(ifExpression *ast.IfExpression, env *object
 	}
 }
 
-// evalCallExpression 处理函数调用表达式节点
-// 解释函数调用表达式
+// evaluateCallArguments 评估和验证调用参数
 //
 // 参数:
 //
-//	callExpression - 函数调用表达式节点
+//	callExpression - 调用表达式
 //	env - 执行环境
+//	params - 函数参数列表
 //
 // 返回值:
 //
-//	object.Object - 函数表达式的结果，发生错误时返回nil
-func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *object.Environment) object.Object {
-	function := e.Eval(callExpression.Function, env)
-	if e.Err != nil {
-		return nil
+//	[]object.Object - 评估后的参数列表
+//	bool - 是否成功
+func (e *Evaluator) evaluateCallArguments(
+	callExpression *ast.CallExpression,
+	env *object.Environment,
+	params []*ast.Parameter,
+) ([]object.Object, bool) {
+	// 检查是否有可变参数
+	hasVariadic := false
+	for _, param := range params {
+		if param.IsVariadic {
+			hasVariadic = true
+			break
+		}
 	}
-	switch fn := function.(type) {
-	// 函数
-	case *object.Function:
-		// 检查是否有可变参数
-		hasVariadic := false
-		for _, param := range fn.Parameter {
-			if param.IsVariadic {
-				hasVariadic = true
-				break
-			}
-		}
-		// 检查是否有解包参数
-		hasUnpack := false
-		for _, unpack := range callExpression.IsUnpack {
-			if unpack {
-				hasUnpack = true
-				break
-			}
-		}
-		// 计算默认参数数量
-		defaultLen := 0
-		for _, param := range fn.Parameter {
-			if param.DefaultValue != nil {
-				defaultLen++
-			}
-		}
 
-		// 计算传入参数数量
-		argLen := 0
-		for _, arg := range callExpression.Argument {
-			if arg != nil {
-				argLen++
-			}
+	// 检查是否有解包参数
+	hasUnpack := false
+	for _, unpack := range callExpression.IsUnpack {
+		if unpack {
+			hasUnpack = true
+			break
 		}
+	}
 
-		// 参数数量检查
-		least := len(fn.Parameter) - defaultLen
-		max := len(fn.Parameter)
+	// 获取参数长度
+	paramLen := len(params)
 
-		// 如果有可变参数，调整参数数量检查逻辑
-		if hasVariadic {
-			// 最小参数数 = 总参数数 - 默认参数数 - 1（减去可变参数）
-			least--
-			// 最大参数数没有限制
-			max = -1
+	// 计算默认参数数量
+	defaultLen := 0
+	for _, param := range params {
+		if param.DefaultValue != nil {
+			defaultLen++
 		}
+	}
 
-		// 参数数量不匹配检查
-		if !hasUnpack {
-			if max == -1 {
-				// 有可变参数，只检查最小参数数
-				if argLen < least {
-					e.Err = &errors.ArgumentError{
-						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected at least %d parameters, got %d.", least, argLen),
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
-					}
-					return nil
+	// 计算传入参数数量
+	argLen := 0
+	for _, arg := range callExpression.Argument {
+		if arg != nil {
+			argLen++
+		}
+	}
+
+	// 参数数量检查
+	least := paramLen - defaultLen
+	max := paramLen
+
+	// 如果有可变参数，调整参数数量检查逻辑
+	if hasVariadic {
+		// 最小参数数 = 总参数数 - 默认参数数 - 1（减去可变参数）
+		least--
+		// 最大参数数没有限制
+		max = -1
+	}
+
+	// 参数数量不匹配检查
+	if !hasUnpack {
+		if max == -1 {
+			if argLen < least {
+				e.Err = &errors.ArgumentError{
+					Frame:    e.Frame,
+					Message:  fmt.Sprintf("expected at least %d parameters, got %d.", least, argLen),
+					PosStart: callExpression.PosStart,
+					PosEnd:   callExpression.PosEnd,
 				}
-			} else {
-				// 没有可变参数，检查参数数量是否在范围内
-				if !(least <= argLen && argLen <= max) {
-					if defaultLen == 0 {
-						e.Err = &errors.ArgumentError{
-							Frame:    e.Frame,
-							Message:  fmt.Sprintf("expected %d parameters, got %d.", len(fn.Parameter), argLen),
-							PosStart: callExpression.PosStart,
-							PosEnd:   callExpression.PosEnd,
-						}
-					} else if least == 1 {
-						e.Err = &errors.ArgumentError{
-							Frame:    e.Frame,
-							Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", len(fn.Parameter), argLen),
-							PosStart: callExpression.PosStart,
-							PosEnd:   callExpression.PosEnd,
-						}
-					} else {
-						e.Err = &errors.ArgumentError{
-							Frame:    e.Frame,
-							Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, len(fn.Parameter), argLen),
-							PosStart: callExpression.PosStart,
-							PosEnd:   callExpression.PosEnd,
-						}
-					}
-					return nil
-				}
+				return nil, false
 			}
-		}
-
-		// 计算实际参数值
-		var argument []object.Object
-		for i, arg := range callExpression.Argument {
-			if arg == nil {
-				// 如果参数为nil，用默认值填充
-				if len(argument) < len(fn.Parameter) {
-					defaultValue := e.Eval(fn.Parameter[len(argument)].DefaultValue, env)
-					if e.Err != nil {
-						return nil
-					}
-					argument = append(argument, defaultValue)
-				}
-				continue
-			}
-			a := e.Eval(arg, env)
-			if e.Err != nil {
-				return nil
-			}
-			if callExpression.IsUnpack[i] {
-				// 如果是解包参数，将参数展开为多个参数
-				if unpackObj, ok := a.(*object.List); ok {
-					argument = append(argument, unpackObj.Elements...)
-				} else {
-					e.Err = &errors.TypeError{
-						Frame:    e.Frame,
-						Message:  "unpack parameter must be a list expression.",
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
-					}
-					return nil
-				}
-			} else {
-				argument = append(argument, a)
-			}
-		}
-
-		// 有默认参数未被赋值时，用默认值填充
-		for i := len(argument); i < len(fn.Parameter); i++ {
-			// 如果是可变参数，跳过默认值填充
-			if fn.Parameter[i].IsVariadic {
-				break
-			}
-			defaultValue := e.Eval(fn.Parameter[i].DefaultValue, env)
-			if e.Err != nil {
-				return nil
-			}
-			argument = append(argument, defaultValue)
-		}
-
-		// 如果有解包参数，检查参数数量是否匹配
-		if hasUnpack {
-			if max == -1 {
-				// 有可变参数，只检查最小参数数
-				if len(argument) < least {
-					e.Err = &errors.ArgumentError{
-						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected at least %d parameters, got %d.", least, len(argument)),
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
-					}
-					return nil
-				}
-			} else if !(least <= len(argument) && len(argument) <= max) {
+		} else {
+			if !(least <= argLen && argLen <= max) {
 				if defaultLen == 0 {
 					e.Err = &errors.ArgumentError{
 						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected %d parameters, got %d.", len(fn.Parameter), len(argument)),
+						Message:  fmt.Sprintf("expected %d parameters, got %d.", paramLen, argLen),
 						PosStart: callExpression.PosStart,
 						PosEnd:   callExpression.PosEnd,
 					}
 				} else if least == 1 {
 					e.Err = &errors.ArgumentError{
 						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", len(fn.Parameter), len(argument)),
+						Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", paramLen, argLen),
 						PosStart: callExpression.PosStart,
 						PosEnd:   callExpression.PosEnd,
 					}
 				} else {
 					e.Err = &errors.ArgumentError{
 						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, len(fn.Parameter), len(argument)),
+						Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, paramLen, argLen),
 						PosStart: callExpression.PosStart,
 						PosEnd:   callExpression.PosEnd,
 					}
 				}
-				return nil
+				return nil, false
 			}
+		}
+	}
+
+	// 评估参数表达式
+	var argument []object.Object
+	for i, arg := range callExpression.Argument {
+		if arg == nil {
+			// 如果参数为nil，用默认值填充
+			if len(argument) < paramLen {
+				defaultValue := e.Eval(params[len(argument)].DefaultValue, env)
+				if e.Err != nil {
+					return nil, false
+				}
+				argument = append(argument, defaultValue)
+			}
+			continue
+		}
+		a := e.Eval(arg, env)
+		if e.Err != nil {
+			return nil, false
+		}
+		if callExpression.IsUnpack[i] {
+			if unpackObj, ok := a.(*object.List); ok {
+				argument = append(argument, unpackObj.Elements...)
+			} else {
+				e.Err = &errors.TypeError{
+					Frame:    e.Frame,
+					Message:  "unpack parameter must be a list expression.",
+					PosStart: callExpression.PosStart,
+					PosEnd:   callExpression.PosEnd,
+				}
+				return nil, false
+			}
+		} else {
+			argument = append(argument, a)
+		}
+	}
+
+	// 有默认参数未被赋值时，用默认值填充
+	for i := len(argument); i < paramLen; i++ {
+		if hasVariadic && i == paramLen-1 {
+			break
+		}
+		defaultValue := e.Eval(params[i].DefaultValue, env)
+		if e.Err != nil {
+			return nil, false
+		}
+		argument = append(argument, defaultValue)
+	}
+
+	// 如果有解包参数，检查参数数量是否匹配
+	if hasUnpack {
+		actualArgLen := len(argument)
+		if max == -1 {
+			if actualArgLen < least {
+				e.Err = &errors.ArgumentError{
+					Frame:    e.Frame,
+					Message:  fmt.Sprintf("expected at least %d parameters, got %d.", least, actualArgLen),
+					PosStart: callExpression.PosStart,
+					PosEnd:   callExpression.PosEnd,
+				}
+				return nil, false
+			}
+		} else if !(least <= actualArgLen && actualArgLen <= max) {
+			if defaultLen == 0 {
+				e.Err = &errors.ArgumentError{
+					Frame:    e.Frame,
+					Message:  fmt.Sprintf("expected %d parameters, got %d.", paramLen, actualArgLen),
+					PosStart: callExpression.PosStart,
+					PosEnd:   callExpression.PosEnd,
+				}
+			} else if least == 1 {
+				e.Err = &errors.ArgumentError{
+					Frame:    e.Frame,
+					Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", paramLen, actualArgLen),
+					PosStart: callExpression.PosStart,
+					PosEnd:   callExpression.PosEnd,
+				}
+			} else {
+				e.Err = &errors.ArgumentError{
+					Frame:    e.Frame,
+					Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, paramLen, actualArgLen),
+					PosStart: callExpression.PosStart,
+					PosEnd:   callExpression.PosEnd,
+				}
+			}
+			return nil, false
+		}
+	}
+
+	return argument, true
+}
+
+// evaluateCallBuiltinArguments 评估和验证内置函数调用参数
+//
+// 参数:
+//
+//	callExpression - 调用表达式
+//	env - 执行环境
+//	params - 函数参数列表
+//	defaultValue - 默认参数列表
+//	haveVariadic - 是否有可变参数
+//
+// 返回值:
+//
+//	[]object.Object - 评估后的参数列表
+//	bool - 是否成功
+func (e *Evaluator) evaluateCallBuiltinArguments(
+	callExpression *ast.CallExpression,
+	env *object.Environment,
+	params []string,
+	defaultValue []object.Object,
+	haveVariadic bool,
+) ([]object.Object, bool) {
+
+	// 检查是否有解包参数
+	hasUnpack := false
+	for _, unpack := range callExpression.IsUnpack {
+		if unpack {
+			hasUnpack = true
+			break
+		}
+	}
+
+	// 获取参数长度
+	paramLen := len(params)
+
+	// 计算默认参数数量
+	defaultLen := 0
+	for _, defaluts := range defaultValue {
+		if defaluts != nil {
+			defaultLen++
+		}
+	}
+
+	// 计算传入参数数量
+	argLen := 0
+	for _, arg := range callExpression.Argument {
+		if arg != nil {
+			argLen++
+		}
+	}
+
+	// 参数数量检查
+	least := paramLen - defaultLen
+	max := paramLen
+
+	// 如果有可变参数，调整参数数量检查逻辑
+	if haveVariadic {
+		// 最小参数数 = 总参数数 - 默认参数数 - 1（减去可变参数）
+		least--
+		// 最大参数数没有限制
+		max = -1
+	}
+
+	// 参数数量不匹配检查
+	if !hasUnpack {
+		if max == -1 {
+			if argLen < least {
+				e.Err = &errors.ArgumentError{
+					Frame:    e.Frame,
+					Message:  fmt.Sprintf("expected at least %d parameters, got %d.", least, argLen),
+					PosStart: callExpression.PosStart,
+					PosEnd:   callExpression.PosEnd,
+				}
+				return nil, false
+			}
+		} else {
+			if !(least <= argLen && argLen <= max) {
+				if defaultLen == 0 {
+					e.Err = &errors.ArgumentError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("expected %d parameters, got %d.", paramLen, argLen),
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+				} else if least == 1 {
+					e.Err = &errors.ArgumentError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", paramLen, argLen),
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+				} else {
+					e.Err = &errors.ArgumentError{
+						Frame:    e.Frame,
+						Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, paramLen, argLen),
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+				}
+				return nil, false
+			}
+		}
+	}
+
+	// 评估参数表达式
+	var argument []object.Object
+	for i, arg := range callExpression.Argument {
+		if arg == nil {
+			// 如果参数为nil，用默认值填充
+			if len(argument) < paramLen {
+				argument = append(argument, defaultValue[len(argument)])
+			}
+			continue
+		}
+		a := e.Eval(arg, env)
+		if e.Err != nil {
+			return nil, false
+		}
+		if callExpression.IsUnpack[i] {
+			if unpackObj, ok := a.(*object.List); ok {
+				argument = append(argument, unpackObj.Elements...)
+			} else {
+				e.Err = &errors.TypeError{
+					Frame:    e.Frame,
+					Message:  "unpack parameter must be a list expression.",
+					PosStart: callExpression.PosStart,
+					PosEnd:   callExpression.PosEnd,
+				}
+				return nil, false
+			}
+		} else {
+			argument = append(argument, a)
+		}
+	}
+
+	// 有默认参数未被赋值时，用默认值填充
+	for i := len(argument); i < paramLen; i++ {
+		if haveVariadic && i == paramLen-1 {
+			break
+		}
+		argument = append(argument, defaultValue[i])
+	}
+
+	if haveVariadic {
+		// 处理可变参数：收集剩余的所有参数到一个列表中
+		variadicArgs := make([]object.Object, 0)
+		for j := least; j < len(argument); j++ {
+			variadicArgs = append(variadicArgs, argument[j])
+		}
+		// 创建列表对象
+		listObj := &object.List{
+			Elements: variadicArgs,
+		}
+		argument = append(argument[:least], listObj)
+	}
+
+	// 如果有解包参数，检查参数数量是否匹配
+	if hasUnpack {
+		actualArgLen := len(argument)
+		if max == -1 {
+			if actualArgLen < least {
+				e.Err = &errors.ArgumentError{
+					Frame:    e.Frame,
+					Message:  fmt.Sprintf("expected at least %d parameters, got %d.", least, actualArgLen),
+					PosStart: callExpression.PosStart,
+					PosEnd:   callExpression.PosEnd,
+				}
+				return nil, false
+			}
+		} else if !(least <= actualArgLen && actualArgLen <= max) {
+			if defaultLen == 0 {
+				e.Err = &errors.ArgumentError{
+					Frame:    e.Frame,
+					Message:  fmt.Sprintf("expected %d parameters, got %d.", paramLen, actualArgLen),
+					PosStart: callExpression.PosStart,
+					PosEnd:   callExpression.PosEnd,
+				}
+			} else if least == 1 {
+				e.Err = &errors.ArgumentError{
+					Frame:    e.Frame,
+					Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", paramLen, actualArgLen),
+					PosStart: callExpression.PosStart,
+					PosEnd:   callExpression.PosEnd,
+				}
+			} else {
+				e.Err = &errors.ArgumentError{
+					Frame:    e.Frame,
+					Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, paramLen, actualArgLen),
+					PosStart: callExpression.PosStart,
+					PosEnd:   callExpression.PosEnd,
+				}
+			}
+			return nil, false
+		}
+	}
+
+	return argument, true
+}
+
+// evalCallFunction 处理函数调用表达式节点
+// 解释函数调用表达式
+//
+// 参数:
+//
+//	function - 函数对象
+//	callExpression - 调用表达式
+//	env - 执行环境
+//
+// 返回值:
+//
+//	object.Object - 函数调用的结果，发生错误时返回nil
+func (e *Evaluator) evalCallFunction(function object.Object, callExpression *ast.CallExpression, env *object.Environment) object.Object {
+	switch function := function.(type) {
+	// 函数
+	case *object.Function:
+		f := function
+
+		// 使用辅助函数评估和验证参数
+		argument, ok := e.evaluateCallArguments(
+			callExpression,
+			env,
+			f.Parameter,
+		)
+		if !ok {
+			return nil
 		}
 
 		// 创建函数环境
 		funcEnv := &object.Environment{
 			Name:  "function",
 			Store: make(map[string]*object.Symbol),
-			Outer: fn.Env,
+			Outer: f.Env,
 		}
 		e.Frame = &frame.Frame{
-			FuncName: fmt.Sprintf("<function \"%s\">", fn.Name),
+			FuncName: fmt.Sprintf("<function \"%s\">", f.Name),
 			Parent:   e.Frame,
 			PosStart: callExpression.PosStart,
 			PosEnd:   callExpression.PosEnd,
 		}
 
 		// 绑定参数到函数环境
-		for i, param := range fn.Parameter {
+		for i, param := range f.Parameter {
 			if param.IsVariadic {
 				// 处理可变参数：收集剩余的所有参数到一个列表中
 				variadicArgs := make([]object.Object, 0)
@@ -2509,7 +3162,7 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 		}
 
 		// 执行函数体
-		var returnValue = e.evalWithSpecialValue(fn.Body, funcEnv)
+		var returnValue = e.evalWithSpecialValue(f.Body, funcEnv)
 		if e.Err != nil {
 			return nil
 		}
@@ -2519,172 +3172,131 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 		} else {
 			return returnValue
 		}
-	// 内置函数
-	case *object.BuiltinFunction:
-		// 检查是否有可变参数
-		hasVariadic := fn.HaveVariadic
-
-		// 检查是否有解包参数
-		hasUnpack := false
-		for _, unpack := range callExpression.IsUnpack {
-			if unpack {
-				hasUnpack = true
-				break
+	case *object.Method:
+		method := function
+		if f, ok := method.Function.(*object.Function); ok {
+			// 使用辅助函数评估和验证参数
+			argument, ok := e.evaluateCallArguments(
+				callExpression,
+				env,
+				f.Parameter,
+			)
+			if !ok {
+				return nil
 			}
-		}
 
-		// 计算默认参数数量
-		defaultLen := 0
-		for _, defaultValue := range fn.DefaultValue {
-			if defaultValue != nil {
-				defaultLen++
+			// 创建函数环境
+			funcEnv := &object.Environment{
+				Name:  "method",
+				Store: make(map[string]*object.Symbol),
+				Outer: &object.Environment{
+					Name:  "method instance",
+					Store: method.Instance.Member.Store,
+					Outer: f.Env,
+				},
 			}
-		}
-		// 计算传入参数数量
-		argLen := 0
-		for _, arg := range callExpression.Argument {
-			if arg != nil {
-				argLen++
+			e.Frame = &frame.Frame{
+				FuncName: fmt.Sprintf("<method \"%s\">", f.Name),
+				Parent:   e.Frame,
+				PosStart: callExpression.PosStart,
+				PosEnd:   callExpression.PosEnd,
 			}
-		}
 
-		// 参数数量检查
-		least := len(fn.Parameter) - defaultLen
-		max := len(fn.Parameter)
-
-		// 如果有可变参数，调整参数数量检查逻辑
-		if hasVariadic {
-			// 最小参数数 = 总参数数 - 默认参数数 - 1（减去可变参数）
-			least--
-			// 最大参数数没有限制
-			max = -1
-		}
-
-		// 参数数量不匹配检查（有解包参数时跳过）
-		if !hasUnpack {
-			if max == -1 {
-				// 有可变参数，只检查最小参数数
-				if argLen < least {
-					e.Err = &errors.ArgumentError{
-						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected at least %d parameters, got %d.", least, argLen),
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
+			// 绑定参数到函数环境
+			for i, param := range f.Parameter {
+				if param.IsVariadic {
+					// 处理可变参数：收集剩余的所有参数到一个列表中
+					variadicArgs := make([]object.Object, 0)
+					for j := i; j < len(argument); j++ {
+						variadicArgs = append(variadicArgs, argument[j])
 					}
-					return nil
-				}
-			} else {
-				// 没有可变参数，检查参数数量是否在范围内
-				if !(least <= argLen && argLen <= max) {
-					if defaultLen == 0 {
-						e.Err = &errors.ArgumentError{
-							Frame:    e.Frame,
-							Message:  fmt.Sprintf("expected %d parameters, got %d.", len(fn.Parameter), argLen),
-							PosStart: callExpression.PosStart,
-							PosEnd:   callExpression.PosEnd,
-						}
-					} else if least == 1 {
-						e.Err = &errors.ArgumentError{
-							Frame:    e.Frame,
-							Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", len(fn.Parameter), argLen),
-							PosStart: callExpression.PosStart,
-							PosEnd:   callExpression.PosEnd,
-						}
-					} else {
-						e.Err = &errors.ArgumentError{
-							Frame:    e.Frame,
-							Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, len(fn.Parameter), argLen),
-							PosStart: callExpression.PosStart,
-							PosEnd:   callExpression.PosEnd,
-						}
+					// 创建列表对象
+					listObj := &object.List{
+						Elements: variadicArgs,
 					}
-					return nil
+					// 绑定可变参数
+					funcEnv.Set(param.Name.Name, &object.Symbol{
+						Name:    param.Name.Name,
+						Value:   listObj,
+						IsConst: false,
+					})
+					break
+				} else if i < len(argument) {
+					// 普通参数
+					funcEnv.Set(param.Name.Name, &object.Symbol{
+						Name:    param.Name.Name,
+						Value:   argument[i],
+						IsConst: false,
+					})
 				}
 			}
-		}
+			// 设置当前环境为实例环境
+			oldThis := e.This
+			e.This = method.Instance
 
-		// 评估参数表达式
-		var argument []object.Object
-		for i, arg := range callExpression.Argument {
-			// 如果参数为nil，用默认值填充
-			if arg == nil {
-				if len(argument) < len(fn.Parameter) {
-					argument = append(argument, fn.DefaultValue[len(argument)])
-				}
-				continue
-			}
-			a := e.Eval(arg, env)
+			// 执行函数体
+			var returnValue = e.evalWithSpecialValue(f.Body, funcEnv)
 			if e.Err != nil {
 				return nil
 			}
-			if callExpression.IsUnpack[i] {
-				// 如果是解包参数，将参数展开为多个参数
-				if unpackObj, ok := a.(*object.List); ok {
-					argument = append(argument, unpackObj.Elements...)
-				} else {
-					e.Err = &errors.TypeError{
-						Frame:    e.Frame,
-						Message:  "unpack parameter must be a list expression.",
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
-					}
-					return nil
-				}
+			e.Frame = e.Frame.Parent
+			// 恢复旧This
+			e.This = oldThis
+			if ret, ok := returnValue.(*object.ReturnValue); ok {
+				return ret.Value
 			} else {
-				argument = append(argument, a)
+				return returnValue
 			}
-		}
-
-		// 有默认参数未被赋值时，用默认值填充
-		for i := len(argument); i < len(fn.Parameter); i++ {
-			// 如果是可变参数，跳过默认值填充
-			if hasVariadic && i == len(fn.Parameter)-1 {
-				break
-			}
-			argument = append(argument, fn.DefaultValue[i])
-		}
-
-		// 如果有解包参数，检查参数数量是否匹配
-		if hasUnpack {
-			actualArgLen := len(argument)
-
-			if max == -1 {
-				// 有可变参数，只检查最小参数数
-				if actualArgLen < least {
-					e.Err = &errors.ArgumentError{
-						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected at least %d parameters, got %d.", least, actualArgLen),
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
-					}
-					return nil
-				}
-			} else if !(least <= actualArgLen && actualArgLen <= max) {
-				// 没有可变参数，检查参数数量是否在范围内
-				if defaultLen == 0 {
-					e.Err = &errors.ArgumentError{
-						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected %d parameters, got %d.", len(fn.Parameter), actualArgLen),
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
-					}
-				} else if least == 1 {
-					e.Err = &errors.ArgumentError{
-						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", len(fn.Parameter), actualArgLen),
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
-					}
-				} else {
-					e.Err = &errors.ArgumentError{
-						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, len(fn.Parameter), actualArgLen),
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
-					}
-				}
+		} else if f, ok := method.Function.(*object.BuiltinFunction); ok {
+			// 使用辅助函数评估和验证参数
+			argument, ok := e.evaluateCallBuiltinArguments(
+				callExpression,
+				env,
+				f.Parameter,
+				f.DefaultValue,
+				f.HaveVariadic,
+			)
+			if !ok {
 				return nil
 			}
+			// 调用内置方法
+			e.Frame = &frame.Frame{
+				FuncName: fmt.Sprintf("<method \"%s\">", f.Name),
+				Parent:   e.Frame,
+				PosStart: callExpression.PosStart,
+				PosEnd:   callExpression.PosEnd,
+			}
+			argument = append([]object.Object{method.Instance}, argument...)
+			val, err := f.Fn(e.Frame, env, callExpression.PosStart, callExpression.PosEnd, argument...)
+			if err != nil {
+				e.Err = err
+				return nil
+			}
+			e.Frame = e.Frame.Parent
+			return val
+		} else {
+			e.Err = &errors.TypeError{
+				Frame:    e.Frame,
+				Message:  "the value cannot be called.",
+				PosStart: callExpression.PosStart,
+				PosEnd:   callExpression.PosEnd,
+			}
+			return nil
+		}
+	// 内置函数
+	case *object.BuiltinFunction:
+		fn := function
+
+		// 使用辅助函数评估和验证参数
+		argument, ok := e.evaluateCallBuiltinArguments(
+			callExpression,
+			env,
+			fn.Parameter,
+			fn.DefaultValue,
+			fn.HaveVariadic,
+		)
+		if !ok {
+			return nil
 		}
 
 		// 调用内置函数
@@ -2694,7 +3306,210 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 			PosStart: callExpression.PosStart,
 			PosEnd:   callExpression.PosEnd,
 		}
-		val, err := fn.Fn(e.Frame, callExpression.PosStart, callExpression.PosEnd, argument...)
+		val, err := fn.Fn(e.Frame, env, callExpression.PosStart, callExpression.PosEnd, argument...)
+		if err != nil {
+			e.Err = err
+			return nil
+		}
+		e.Frame = e.Frame.Parent
+		return val
+	case *object.Class:
+		// 实例化类
+		class := function
+		// 判断是否是内置类
+		if builtinClass, ok := builtinclass.BuiltinClasses[class.Name]; ok {
+			init, ok := builtinClass.Member.Get("init")
+			if !ok {
+				e.Err = &errors.ArgumentError{
+					Frame:    e.Frame,
+					Message:  fmt.Sprintf("class \"%s\" has no constructor", class.Name),
+					PosStart: callExpression.PosStart,
+					PosEnd:   callExpression.PosEnd,
+				}
+				return nil
+			}
+			// 判断参数是否是实例
+			if len(callExpression.Argument) == 1 {
+				arg := e.Eval(callExpression.Argument[0], env)
+				if e.Err != nil {
+					return nil
+				}
+				if instance, ok := arg.(*object.Instance); ok {
+					magicMethods := map[string]string{
+						"Int":    "__Int__",
+						"Float":  "__Float__",
+						"Bool":   "__Bool__",
+						"String": "__String__",
+						"List":   "__List__",
+						"Dict":   "__Dict__",
+						"Map":    "__Map__",
+					}
+					magicMethod := magicMethods[class.Name]
+					methodSymbol, ok := instance.Member.Get(magicMethod)
+					if ok {
+						callExpression.Argument = make([]ast.Expression, 0)
+						ret := e.evalCallFunction(methodSymbol.Value, callExpression, env)
+						if e.Err != nil {
+							return nil
+						}
+						e.Frame = &frame.Frame{
+							FuncName: "<method \"init\">",
+							Parent:   e.Frame,
+							PosStart: callExpression.PosStart,
+							PosEnd:   callExpression.PosEnd,
+						}
+						val, err := init.Value.(*object.Method).Function.(*object.BuiltinFunction).Fn(e.Frame, env, callExpression.PosStart, callExpression.PosEnd, ret)
+						if err != nil {
+							e.Err = err
+							return nil
+						}
+						e.Frame = e.Frame.Parent
+						return val
+					} else {
+						e.Err = &errors.ArgumentError{
+							Frame:    e.Frame,
+							Message:  fmt.Sprintf("cannot convert type \"%s\" to class \"%s\"", arg.Type(), class.Name),
+							PosStart: callExpression.PosStart,
+							PosEnd:   callExpression.PosEnd,
+						}
+						return nil
+					}
+				} else {
+					// 不是实例，正常调用构造函数
+					e.Frame = &frame.Frame{
+						FuncName: "<method \"init\">",
+						Parent:   e.Frame,
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
+					val, err := init.Value.(*object.Method).Function.(*object.BuiltinFunction).Fn(e.Frame, env, callExpression.PosStart, callExpression.PosEnd, arg)
+					if err != nil {
+						e.Err = err
+						return nil
+					}
+					e.Frame = e.Frame.Parent
+					return val
+				}
+			}
+			ret := e.evalCallFunction(init.Value.(*object.Method).Function, callExpression, env)
+			if e.Err != nil {
+				return nil
+			}
+			return ret
+		}
+		instance := &object.Instance{
+			Class: class,
+		}
+		// 创建实例环境
+		member := &object.Environment{
+			Name:  fmt.Sprintf("instance of class %s", class.Name),
+			Store: make(map[string]*object.Symbol),
+			Outer: env,
+		}
+		// 将类的父类反向排列
+		members := []*object.Environment{class.Member}
+		for cls := class.Parent; cls != nil; cls = cls.Parent {
+			members = append(members[:1], members...)
+			members[0] = cls.Member
+		}
+		// 遍历类的父类，绑定方法和属性到实例环境
+		var init *object.Method = nil
+		for _, members := range members {
+			for name, symbol := range members.Store {
+				value := symbol.Value
+				if function, ok := value.(*object.Function); ok {
+					// 绑定方法到实例环境
+					member.Set(name, &object.Symbol{
+						Name: name,
+						Value: &object.Method{
+							Name:     name,
+							Function: function,
+							Instance: instance,
+						},
+						IsConst: true,
+					})
+					if name == "init" {
+						init = &object.Method{
+							Name:     name,
+							Function: function,
+							Instance: instance,
+						}
+					}
+				} else if function, ok := value.(*object.BuiltinFunction); ok {
+					// 绑定方法到实例环境
+					member.Set(name, &object.Symbol{
+						Name: name,
+						Value: &object.Method{
+							Name:     name,
+							Function: function,
+							Instance: instance,
+						},
+						IsConst: true,
+					})
+					if name == "init" {
+						init = &object.Method{
+							Name:     name,
+							Function: function,
+							Instance: instance,
+						}
+					}
+				} else {
+					// 绑定属性到实例环境
+					member.Set(name, &object.Symbol{
+						Name:    name,
+						Value:   value,
+						IsConst: symbol.IsConst,
+					})
+				}
+			}
+		}
+		// 调用初始化方法
+		if init == nil {
+			// 检查参数数量是否为0
+			if len(callExpression.Argument) != 0 {
+				e.Err = &errors.ArgumentError{
+					Frame:    e.Frame,
+					Message:  fmt.Sprintf("expected 0 parameters when class \"%s\" has no constructor, got %d.", class.Name, len(callExpression.Argument)),
+					PosStart: callExpression.PosStart,
+					PosEnd:   callExpression.PosEnd,
+				}
+				return nil
+			}
+			instance.Member = member
+			return instance
+		} else {
+			instance.Member = member
+			// 调用初始化方法
+			e.evalCallFunction(init, callExpression, env)
+			if e.Err != nil {
+				return nil
+			}
+			return instance
+		}
+	case *object.BoundBuiltinMethod:
+		fn := function.Function.Function.(*object.BuiltinFunction)
+
+		// 使用辅助函数评估和验证参数
+		argument, ok := e.evaluateCallBuiltinArguments(
+			callExpression,
+			env,
+			nil,
+			fn.DefaultValue,
+			fn.HaveVariadic,
+		)
+		if !ok {
+			return nil
+		}
+
+		// 调用内置函数
+		e.Frame = &frame.Frame{
+			FuncName: fmt.Sprintf("<method \"%s\">", fn.Name),
+			Parent:   e.Frame,
+			PosStart: callExpression.PosStart,
+			PosEnd:   callExpression.PosEnd,
+		}
+		argument = append([]object.Object{function.Receiver}, argument...)
+		val, err := fn.Fn(e.Frame, env, callExpression.PosStart, callExpression.PosEnd, argument...)
 		if err != nil {
 			e.Err = err
 			return nil
@@ -2705,12 +3520,31 @@ func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *
 		// 调用非函数
 		e.Err = &errors.TypeError{
 			Frame:    e.Frame,
-			Message:  "the value is not a function and cannot be called.",
+			Message:  "the value cannot be called.",
 			PosStart: callExpression.PosStart,
 			PosEnd:   callExpression.PosEnd,
 		}
 		return nil
 	}
+}
+
+// evalCallExpression 处理函数调用表达式节点
+// 解释函数调用表达式
+//
+// 参数:
+//
+//	callExpression - 函数调用表达式节点
+//	env - 执行环境
+//
+// 返回值:
+//
+//	object.Object - 函数表达式的结果，发生错误时返回nil
+func (e *Evaluator) evalCallExpression(callExpression *ast.CallExpression, env *object.Environment) object.Object {
+	function := e.Eval(callExpression.Function, env)
+	if e.Err != nil {
+		return nil
+	}
+	return e.evalCallFunction(function, callExpression, env)
 }
 
 // evalRangeExpression 处理范围表达式节点
@@ -2873,5 +3707,56 @@ func (e *Evaluator) evalMapExpression(mapExpression *ast.MapExpression, env *obj
 	}
 	return &object.Map{
 		Pairs: pairs,
+	}
+}
+
+// evalThisExpression 处理this表达式节点
+// 解释this表达式
+//
+// 参数:
+//
+//	thisExpression - this表达式节点
+//	env - 执行环境
+//
+// 返回值:
+//
+//	object.Object - this表达式的结果，发生错误时返回nil
+func (e *Evaluator) evalThisExpression(thisExpression *ast.ThisExpression, _ *object.Environment) object.Object {
+	if e.This == nil {
+		e.Err = &errors.TypeError{
+			Frame:    e.Frame,
+			Message:  "this expression must be used in a method.",
+			PosStart: thisExpression.PosStart,
+			PosEnd:   thisExpression.PosEnd,
+		}
+		return nil
+	}
+	return e.This
+}
+
+// evalSuperExpression 处理super表达式节点
+// 解释super表达式
+//
+// 参数:
+//
+//	superExpression - super表达式节点
+//	env - 执行环境
+//
+// 返回值:
+//
+//	object.Object - super表达式的结果，发生错误时返回nil
+func (e *Evaluator) evalSuperExpression(superExpression *ast.SuperExpression, _ *object.Environment) object.Object {
+	if e.This == nil || e.This.Class.Parent == nil {
+		e.Err = &errors.TypeError{
+			Frame:    e.Frame,
+			Message:  "super can only be used in a method of a class with a parent.",
+			PosStart: superExpression.PosStart,
+			PosEnd:   superExpression.PosEnd,
+		}
+		return nil
+	}
+	return &object.Super{
+		Instance: e.This,
+		Parent:   e.This.Class.Parent,
 	}
 }

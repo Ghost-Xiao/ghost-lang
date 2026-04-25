@@ -2,8 +2,6 @@ package object
 
 import (
 	"fmt"
-	"math"
-	"os"
 	"strings"
 
 	"github.com/Ghost-Xiao/ghost-lang/internal/errors"
@@ -11,14 +9,11 @@ import (
 	"github.com/Ghost-Xiao/ghost-lang/internal/util"
 )
 
-// BuiltinFunction 表示内建函数类型，实现了Object接口
-// 支持的操作包括调用函数等
-type BuiltinFunction struct {
-	Name         string                                                                                             // 函数名
-	Parameter    []string                                                                                           // 参数名
-	DefaultValue []Object                                                                                           // 默认参数值
-	HaveVariadic bool                                                                                               // 是否为可变参数
-	Fn           func(f *frame.Frame, env *Environment, posStart, posEnd *util.Pos, args ...Object) (Object, error) // 函数体
+// Instance 表示实例类型，实现了Object接口
+// 用于表示实例
+type Instance struct {
+	Class  *Class       // 类
+	Member *Environment // 成员环境
 }
 
 // Type 返回值的类型
@@ -26,8 +21,8 @@ type BuiltinFunction struct {
 // 返回值:
 //
 //	string - 值的类型
-func (bf *BuiltinFunction) Type() string {
-	return "BuiltinFunction"
+func (i *Instance) Type() string {
+	return i.Class.Name
 }
 
 // String 返回值的字符串表示
@@ -35,26 +30,18 @@ func (bf *BuiltinFunction) Type() string {
 // 返回值:
 //
 //	string - 格式化的字符串表示
-func (bf *BuiltinFunction) String() string {
-	var sb strings.Builder
-	sb.WriteString("func ")
-	sb.WriteString(bf.Name)
-	sb.WriteString("(")
-	for i, param := range bf.Parameter {
-		if bf.HaveVariadic && i == len(bf.Parameter)-1 {
-			sb.WriteString("...")
-		}
-		sb.WriteString(param)
-		if bf.DefaultValue[i] != nil {
-			sb.WriteString("=")
-			sb.WriteString(bf.DefaultValue[i].String())
-		}
-		if i < len(bf.Parameter)-1 {
-			sb.WriteString(", ")
+func (i *Instance) String() string {
+	// 返回统一格式 ClassName(field1: value1, field2: value2, ...)
+	res := fmt.Sprintf("%s(", i.Class.Name)
+	for name, symbol := range i.Member.Store {
+		// 只打印非方法成员
+		if _, ok := symbol.Value.(*Method); !ok {
+			res += fmt.Sprintf("%s=%s, ", name, symbol.Value.String())
 		}
 	}
-	sb.WriteString(") { [builtin code] }")
-	return sb.String()
+	res = strings.TrimSuffix(res, ", ")
+	res += ")"
+	return res
 }
 
 // Negative 对值进行负运算
@@ -69,7 +56,7 @@ func (bf *BuiltinFunction) String() string {
 //
 //	Object - 运算结果
 //	error - 可能出现的错误
-func (bf *BuiltinFunction) Negative(posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+func (i *Instance) Negative(posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
 	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"-\".",
@@ -90,7 +77,7 @@ func (bf *BuiltinFunction) Negative(posStart, posEnd *util.Pos, frame *frame.Fra
 //
 //	Object - 运算结果
 //	error - 可能出现的错误
-func (bf *BuiltinFunction) BitNot(posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+func (i *Instance) BitNot(posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
 	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"~\".",
@@ -111,7 +98,7 @@ func (bf *BuiltinFunction) BitNot(posStart, posEnd *util.Pos, frame *frame.Frame
 //
 //	Object - 运算结果
 //	error - 可能出现的错误
-func (bf *BuiltinFunction) Not(posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+func (i *Instance) Not(posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
 	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"!\".",
@@ -133,7 +120,7 @@ func (bf *BuiltinFunction) Not(posStart, posEnd *util.Pos, frame *frame.Frame) (
 //
 //	Object - 运算结果
 //	error - 可能出现的错误
-func (bf *BuiltinFunction) Add(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+func (i *Instance) Add(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
 	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"+\".",
@@ -155,7 +142,7 @@ func (bf *BuiltinFunction) Add(_ Object, posStart, posEnd *util.Pos, frame *fram
 //
 //	Object - 运算结果
 //	error - 可能出现的错误
-func (bf *BuiltinFunction) Subtract(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+func (i *Instance) Subtract(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
 	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"-\".",
@@ -177,7 +164,7 @@ func (bf *BuiltinFunction) Subtract(_ Object, posStart, posEnd *util.Pos, frame 
 //
 //	Object - 运算结果
 //	error - 可能出现的错误
-func (bf *BuiltinFunction) Multiply(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+func (i *Instance) Multiply(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
 	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"*\".",
@@ -199,7 +186,7 @@ func (bf *BuiltinFunction) Multiply(_ Object, posStart, posEnd *util.Pos, frame 
 //
 //	Object - 运算结果
 //	error - 可能出现的错误
-func (bf *BuiltinFunction) Divide(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+func (i *Instance) Divide(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
 	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"/\".",
@@ -221,7 +208,7 @@ func (bf *BuiltinFunction) Divide(_ Object, posStart, posEnd *util.Pos, frame *f
 //
 //	Object - 运算结果
 //	error - 可能出现的错误
-func (bf *BuiltinFunction) Mod(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+func (i *Instance) Mod(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
 	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"%\".",
@@ -230,7 +217,7 @@ func (bf *BuiltinFunction) Mod(_ Object, posStart, posEnd *util.Pos, frame *fram
 	}
 }
 
-// Equal 判断当前函数与另一个值是否相等
+// Equal 判断当前值与另一个值是否相等
 //
 // 参数:
 //
@@ -240,21 +227,18 @@ func (bf *BuiltinFunction) Mod(_ Object, posStart, posEnd *util.Pos, frame *fram
 //
 // 返回值:
 //
-//	布尔值，表示比较结果；无错误
-//
-// 比较规则:
-//
-//	引用性比较
-func (bf *BuiltinFunction) Equal(other Object, _, _ *util.Pos, _ *frame.Frame) (Object, error) {
-	// 函数相等比较规则: 比较引用是否相等
-	otherFunc, ok := other.(*BuiltinFunction)
-	if !ok {
-		return &Bool{Value: false}, nil
+//	Object - 运算结果
+//	error - 可能出现的错误
+func (i *Instance) Equal(other Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+	return nil, &errors.OperationError{
+		Frame:    frame,
+		Message:  "invalid operation \"==\".",
+		PosStart: posStart,
+		PosEnd:   posEnd,
 	}
-	return &Bool{Value: bf == otherFunc}, nil
 }
 
-// NotEqual 判断当前函数与另一个值是否不相等
+// NotEqual 判断当前值与另一个值是否不相等
 //
 // 参数:
 //
@@ -264,18 +248,15 @@ func (bf *BuiltinFunction) Equal(other Object, _, _ *util.Pos, _ *frame.Frame) (
 //
 // 返回值:
 //
-//	布尔值，表示比较结果；无错误
-//
-// 比较规则:
-//
-//	引用性比较
-func (bf *BuiltinFunction) NotEqual(other Object, _, _ *util.Pos, _ *frame.Frame) (Object, error) {
-	// 函数不等比较规则: 比较引用是否不等
-	otherFunc, ok := other.(*BuiltinFunction)
-	if !ok {
-		return &Bool{Value: true}, nil
+//	Object - 运算结果
+//	error - 可能出现的错误
+func (i *Instance) NotEqual(other Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+	return nil, &errors.OperationError{
+		Frame:    frame,
+		Message:  "invalid operation \"!=\".",
+		PosStart: posStart,
+		PosEnd:   posEnd,
 	}
-	return &Bool{Value: bf != otherFunc}, nil
 }
 
 // LessThan 对值进行小于比较
@@ -290,7 +271,7 @@ func (bf *BuiltinFunction) NotEqual(other Object, _, _ *util.Pos, _ *frame.Frame
 // 返回值:
 //
 //	Object - 比较结果
-func (bf *BuiltinFunction) LessThan(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+func (i *Instance) LessThan(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
 	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"<\".",
@@ -311,7 +292,7 @@ func (bf *BuiltinFunction) LessThan(_ Object, posStart, posEnd *util.Pos, frame 
 // 返回值:
 //
 //	Object - 比较结果
-func (bf *BuiltinFunction) GreaterThan(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+func (i *Instance) GreaterThan(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
 	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \">\".",
@@ -332,7 +313,7 @@ func (bf *BuiltinFunction) GreaterThan(_ Object, posStart, posEnd *util.Pos, fra
 // 返回值:
 //
 //	Object - 比较结果
-func (bf *BuiltinFunction) LessThanOrEqual(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+func (i *Instance) LessThanOrEqual(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
 	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"<=\".",
@@ -353,7 +334,7 @@ func (bf *BuiltinFunction) LessThanOrEqual(_ Object, posStart, posEnd *util.Pos,
 // 返回值:
 //
 //	Object - 比较结果
-func (bf *BuiltinFunction) GreaterThanOrEqual(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+func (i *Instance) GreaterThanOrEqual(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
 	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \">=\".",
@@ -375,7 +356,7 @@ func (bf *BuiltinFunction) GreaterThanOrEqual(_ Object, posStart, posEnd *util.P
 //
 //	Object - 运算结果
 //	error - 可能出现的错误
-func (bf *BuiltinFunction) BitAnd(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+func (i *Instance) BitAnd(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
 	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"&\".",
@@ -397,7 +378,7 @@ func (bf *BuiltinFunction) BitAnd(_ Object, posStart, posEnd *util.Pos, frame *f
 //
 //	Object - 运算结果
 //	error - 可能出现的错误
-func (bf *BuiltinFunction) BitOr(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+func (i *Instance) BitOr(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
 	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"|\".",
@@ -419,7 +400,7 @@ func (bf *BuiltinFunction) BitOr(_ Object, posStart, posEnd *util.Pos, frame *fr
 //
 //	Object - 运算结果
 //	error - 可能出现的错误
-func (bf *BuiltinFunction) Xor(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+func (i *Instance) Xor(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
 	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"^\".",
@@ -441,7 +422,7 @@ func (bf *BuiltinFunction) Xor(_ Object, posStart, posEnd *util.Pos, frame *fram
 //
 //	Object - 运算结果
 //	error - 可能出现的错误
-func (bf *BuiltinFunction) LeftShift(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+func (i *Instance) LeftShift(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
 	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"<<\".",
@@ -463,7 +444,7 @@ func (bf *BuiltinFunction) LeftShift(_ Object, posStart, posEnd *util.Pos, frame
 //
 //	Object - 运算结果
 //	error - 可能出现的错误
-func (bf *BuiltinFunction) RightShift(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+func (i *Instance) RightShift(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
 	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \">>\".",
@@ -485,7 +466,7 @@ func (bf *BuiltinFunction) RightShift(_ Object, posStart, posEnd *util.Pos, fram
 //
 //	Object - 运算结果
 //	error - 可能出现的错误
-func (bf *BuiltinFunction) And(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+func (i *Instance) And(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
 	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"&&\".",
@@ -507,7 +488,7 @@ func (bf *BuiltinFunction) And(_ Object, posStart, posEnd *util.Pos, frame *fram
 //
 //	Object - 运算结果
 //	error - 可能出现的错误
-func (bf *BuiltinFunction) Or(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+func (i *Instance) Or(_ Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
 	return nil, &errors.OperationError{
 		Frame:    frame,
 		Message:  "invalid operation \"||\".",
@@ -528,157 +509,11 @@ func (bf *BuiltinFunction) Or(_ Object, posStart, posEnd *util.Pos, frame *frame
 //
 //	Object - 运算结果
 //	error - 可能出现的错误
-func (bf *BuiltinFunction) Index(other Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
+func (i *Instance) Index(other Object, posStart, posEnd *util.Pos, frame *frame.Frame) (Object, error) {
 	return nil, &errors.TypeError{
 		Frame:    frame,
 		Message:  "index expression not supported for this type.",
 		PosStart: posStart,
 		PosEnd:   posEnd,
 	}
-}
-
-// Builtins 是内建函数和常量
-var Builtins = map[string]Object{
-	// inf常量
-	"inf": &Float{Value: math.Inf(1)},
-	// nan常量
-	"nan": &Float{Value: math.NaN()},
-	// print函数
-	"print": &BuiltinFunction{
-		Name:      "print",
-		Parameter: []string{"a"},
-		DefaultValue: []Object{
-			nil,
-		},
-		HaveVariadic: true,
-		Fn: func(f *frame.Frame, env *Environment, posStart, posEnd *util.Pos, args ...Object) (Object, error) {
-			for i, arg := range args[0].(*List).Elements {
-				if i > 0 {
-					fmt.Print(" ")
-				}
-				fmt.Print(arg.String())
-			}
-			// 刷新缓冲区
-			_ = os.Stdout.Sync()
-			return &Null{}, nil
-		},
-	},
-	// println函数
-	"println": &BuiltinFunction{
-		Name:      "println",
-		Parameter: []string{"a"},
-		DefaultValue: []Object{
-			nil,
-		},
-		HaveVariadic: true,
-		Fn: func(f *frame.Frame, env *Environment, posStart, posEnd *util.Pos, args ...Object) (Object, error) {
-			for i, arg := range args[0].(*List).Elements {
-				if i > 0 {
-					fmt.Print(" ")
-				}
-				fmt.Print(arg.String())
-			}
-			fmt.Println()
-			// 刷新缓冲区
-			_ = os.Stdout.Sync()
-			return &Null{}, nil
-		},
-	},
-	// input函数
-	"input": &BuiltinFunction{
-		Name:      "input",
-		Parameter: []string{"prompt"},
-		DefaultValue: []Object{
-			&String{Value: ""},
-		},
-		HaveVariadic: false,
-		Fn: func(f *frame.Frame, env *Environment, posStart, posEnd *util.Pos, args ...Object) (Object, error) {
-			// 打印提示
-			prompt, ok := args[0].(*String)
-			if !ok {
-				return nil, &errors.TypeError{
-					Frame:    f,
-					Message:  "input() argument must be a string.",
-					PosStart: posStart,
-					PosEnd:   posEnd,
-				}
-			}
-			fmt.Print(prompt.String())
-			// 刷新缓冲区
-			_ = os.Stdout.Sync()
-
-			// 从标准输入读取一行
-			var line string
-			_, err := fmt.Scanln(&line)
-			if err != nil {
-				// 如果是 EOF 或空输入，返回空字符串
-				line = ""
-			}
-
-			return &String{Value: line}, nil
-		},
-	},
-	// len函数
-	"len": &BuiltinFunction{
-		Name:      "len",
-		Parameter: []string{"a"},
-		DefaultValue: []Object{
-			nil,
-		},
-		HaveVariadic: false,
-		Fn: func(f *frame.Frame, env *Environment, posStart, posEnd *util.Pos, args ...Object) (Object, error) {
-			a := args[0]
-			indexable, ok := a.(Indexable)
-			if !ok {
-				return nil, &errors.TypeError{
-					Frame:    f,
-					Message:  "len() argument must be a sequence or collection.",
-					PosStart: posStart,
-					PosEnd:   posEnd,
-				}
-			}
-			return &Int{Value: indexable.Length()}, nil
-		},
-	},
-	// power函数
-	"power": &BuiltinFunction{
-		Name:      "power",
-		Parameter: []string{"a", "n"},
-		DefaultValue: []Object{
-			nil,
-		},
-		HaveVariadic: false,
-		Fn: func(f *frame.Frame, env *Environment, posStart, posEnd *util.Pos, args ...Object) (Object, error) {
-			a := args[0]
-			n := args[1]
-			var base, exp float64
-			switch a := a.(type) {
-			case *Int:
-				base = float64(a.Value)
-			case *Float:
-				base = a.Value
-			default:
-				return nil, &errors.TypeError{
-					Frame:    f,
-					Message:  "power() arguments must be integers or floats.",
-					PosStart: posStart,
-					PosEnd:   posEnd,
-				}
-			}
-			switch n := n.(type) {
-			case *Int:
-				exp = float64(n.Value)
-			case *Float:
-				exp = n.Value
-			default:
-				return nil, &errors.TypeError{
-					Frame:    f,
-					Message:  "power() arguments must be integers or floats.",
-					PosStart: posStart,
-					PosEnd:   posEnd,
-				}
-			}
-			return &Float{Value: math.Pow(base, exp)}, nil
-		},
-	},
 }

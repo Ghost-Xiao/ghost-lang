@@ -295,8 +295,10 @@ func (vi *VarInitializationExpression) String() string {
 		sb.WriteString("var ")
 	}
 	sb.WriteString(vi.Name.String())
-	sb.WriteString(" = ")
-	sb.WriteString(vi.Value.String())
+	if vi.Value != nil {
+		sb.WriteString(" = ")
+		sb.WriteString(vi.Value.String())
+	}
 	return sb.String()
 }
 
@@ -787,5 +789,55 @@ func (re *MapExpression) Expression() {}
 
 // IsLvalue 方法，返回是否为左值
 func (re *MapExpression) IsLvalue() bool {
+	return false
+}
+
+// ThisExpression 是this表达式节点
+type ThisExpression struct {
+	PosStart *util.Pos // 表达式的起始位置
+	PosEnd   *util.Pos // 表达式的结束位置
+}
+
+// String 返回this表达式的字符串表示
+// 格式为：this
+//
+// 返回值:
+//
+//	this表达式的字符串表示
+func (re *ThisExpression) String() string {
+	return "this"
+}
+
+// Expression 是标记方法，用于类型判断
+// 实现Expression接口
+func (re *ThisExpression) Expression() {}
+
+// IsLvalue 方法，返回是否为左值
+func (re *ThisExpression) IsLvalue() bool {
+	return false
+}
+
+// SuperExpression 是super表达式节点
+type SuperExpression struct {
+	PosStart *util.Pos // 表达式的起始位置
+	PosEnd   *util.Pos // 表达式的结束位置
+}
+
+// String 返回super表达式的字符串表示
+// 格式为：super
+//
+// 返回值:
+//
+//	super表达式的字符串表示
+func (re *SuperExpression) String() string {
+	return "super"
+}
+
+// Expression 是标记方法，用于类型判断
+// 实现Expression接口
+func (re *SuperExpression) Expression() {}
+
+// IsLvalue 方法，返回是否为左值
+func (re *SuperExpression) IsLvalue() bool {
 	return false
 }

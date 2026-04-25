@@ -120,10 +120,12 @@ func (l *Lexer) NextToken() (*Token, error) {
 				return &Token{Type: STRING, Literal: str, PosStart: posStart, PosEnd: l.NextPos.Copy()}, nil
 				// 非法字符处理
 			} else {
-				return &Token{Type: ILLEGAL, Literal: "ILLEGAL"}, &errors.IllegalTokenError{
+				posStart := l.CurrPos.Copy()
+				posEnd := l.NextPos.Copy()
+				return &Token{Type: ILLEGAL, Literal: "ILLEGAL", PosStart: posStart, PosEnd: posEnd}, &errors.IllegalTokenError{
 					Message:  fmt.Sprintf("illegal token \"%c\".", l.CurrPos.Char),
-					PosStart: l.CurrPos.Copy(),
-					PosEnd:   l.NextPos.Copy(),
+					PosStart: posStart,
+					PosEnd:   posEnd,
 				}
 			}
 		}

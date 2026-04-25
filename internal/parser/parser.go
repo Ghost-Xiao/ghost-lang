@@ -123,6 +123,8 @@ func NewParser(l *lexer.Lexer) (*Parser, error) {
 		lexer.LBRACE:      p.parseBlockExpression,
 		lexer.IF:          p.parseIfExpression,
 		lexer.LBRACKET:    p.parseListExpression,
+		lexer.THIS:        p.parseThisExpression,
+		lexer.SUPER:       p.parseSuperExpression,
 	}
 	// 初始化中缀解析函数映射
 	p.InfixParseFns = map[string]func(ast.Expression, *util.Pos) ast.Expression{
@@ -271,6 +273,9 @@ func (p *Parser) parseStatement(posStart *util.Pos) ast.Statement {
 	case lexer.IMPORT:
 		// 解析为import语句
 		return p.parseImportStatement(posStart)
+	case lexer.CLASS:
+		// 解析为class语句
+		return p.parseClassStatement(posStart)
 	default:
 		// 解析为表达式语句
 		return p.parseExpressionStatement(posStart)
@@ -382,8 +387,15 @@ func (p *Parser) parseFunctionDeclarationStatement(posStart *util.Pos) *ast.Func
 			haveVariadic = true
 			p.Advance()
 		}
-
 		// 解析参数
+		if p.CurrToken.Type != lexer.IDENT {
+			p.Err = &errors.SyntaxError{
+				Message:  "parameter name must be an identifier.",
+				PosStart: p.CurrToken.PosStart.Copy(),
+				PosEnd:   p.CurrToken.PosEnd.Copy(),
+			}
+			return nil
+		}
 		expr := p.parseIdentifierExpression(p.CurrToken.PosStart.Copy())
 		if p.Err != nil {
 			return nil
@@ -557,7 +569,11 @@ func (p *Parser) parseNamespaceStatement(posStart *util.Pos) *ast.NamespaceState
 	ns := &ast.NamespaceStatement{
 		PosStart: posStart,
 	}
-	p.Advance()
+	// 检查命名空间名是否为标识符
+	p.CheckNextAndAdvance(lexer.IDENT)
+	if p.Err != nil {
+		return nil
+	}
 	// 解析命名空间名
 	ns.Name = p.parseIdentifierExpression(p.CurrToken.PosStart.Copy())
 	if p.Err != nil {
@@ -598,6 +614,14 @@ func (p *Parser) parseForEachStatement(posStart *util.Pos) *ast.ForEachStatement
 		// 解析索引变量
 		if fe.IsNewVar {
 			// 只能是标识符
+			if p.CurrToken.Type != lexer.IDENT {
+				p.Err = &errors.SyntaxError{
+					Message:  "index variable must be an identifier.",
+					PosStart: p.CurrToken.PosStart.Copy(),
+					PosEnd:   p.CurrToken.PosEnd.Copy(),
+				}
+				return nil
+			}
 			fe.Index = p.parseIdentifierExpression(p.CurrToken.PosStart.Copy())
 			if p.Err != nil {
 				return nil
@@ -617,6 +641,14 @@ func (p *Parser) parseForEachStatement(posStart *util.Pos) *ast.ForEachStatement
 		// 解析值变量
 		if fe.IsNewVar {
 			// 只能是标识符
+			if p.CurrToken.Type != lexer.IDENT {
+				p.Err = &errors.SyntaxError{
+					Message:  "value variable must be an identifier.",
+					PosStart: p.CurrToken.PosStart.Copy(),
+					PosEnd:   p.CurrToken.PosEnd.Copy(),
+				}
+				return nil
+			}
 			fe.Value = p.parseIdentifierExpression(p.CurrToken.PosStart.Copy())
 			if p.Err != nil {
 				return nil
@@ -637,6 +669,14 @@ func (p *Parser) parseForEachStatement(posStart *util.Pos) *ast.ForEachStatement
 		// 解析值变量
 		if fe.IsNewVar {
 			// 只能是标识符
+			if p.CurrToken.Type != lexer.IDENT {
+				p.Err = &errors.SyntaxError{
+					Message:  "value variable must be an identifier.",
+					PosStart: p.CurrToken.PosStart.Copy(),
+					PosEnd:   p.CurrToken.PosEnd.Copy(),
+				}
+				return nil
+			}
 			fe.Value = p.parseIdentifierExpression(p.CurrToken.PosStart.Copy())
 			if p.Err != nil {
 				return nil
@@ -701,6 +741,54 @@ func (p *Parser) parseImportStatement(posStart *util.Pos) *ast.ImportStatement {
 	}
 	is.PosEnd = p.CurrToken.PosEnd.Copy()
 	return is
+}
+
+// parseClassStatement 解析class语句
+//
+// 参数:
+//
+//	posStart - 语句的起始位置
+//
+// 返回值:
+//
+//	包含表达式的ClassStatement节点
+func (p *Parser) parseClassStatement(posStart *util.Pos) *ast.ClassStatement {
+	ct := &ast.ClassStatement{
+		PosStart: posStart,
+		Extends:  nil,
+	}
+	p.Advance()
+	// 解析类名
+	if p.CurrToken.Type != lexer.IDENT {
+		p.Err = &errors.SyntaxError{
+			Message:  "class name must be an identifier.",
+			PosStart: p.CurrToken.PosStart.Copy(),
+			PosEnd:   p.CurrToken.PosEnd.Copy(),
+		}
+		return nil
+	}
+	ct.Name = p.parseIdentifierExpression(p.CurrToken.PosStart.Copy())
+	if p.Err != nil {
+		return nil
+	}
+	// 判断是否有extends
+	if p.NextToken.Type == lexer.EXTENDS {
+		p.Advance()
+		p.Advance()
+		// 解析extends类名
+		ct.Extends = p.ParseExpression(LOWEST)
+		if p.Err != nil {
+			return nil
+		}
+	}
+	p.Advance()
+	// 解析类体
+	ct.Body = p.parseStatement(p.CurrToken.PosStart.Copy())
+	if p.Err != nil {
+		return nil
+	}
+	ct.PosEnd = p.CurrToken.PosEnd.Copy()
+	return ct
 }
 
 // parseExpressionStatement 解析表达式语句(由单个表达式组成的语句)
@@ -941,23 +1029,30 @@ func (p *Parser) parseVarInitializationExpression(posStart *util.Pos) ast.Expres
 		// 解析变量名
 		name = p.parseIdentifierExpression(p.CurrToken.PosStart.Copy())
 	}
-	// 检查并消耗赋值运算符
-	p.CheckNextAndAdvance(lexer.EQUAL)
-	if p.Err != nil {
-		return nil
-	}
-	p.Advance()
-	// 解析变量值表达式
-	value := p.ParseExpression(LOWEST)
-	if p.Err != nil {
-		return nil
-	}
-	return &ast.VarInitializationExpression{
-		IsConst:  isConst,
-		Name:     name,
-		Value:    value,
-		PosStart: posStart,
-		PosEnd:   p.CurrToken.PosEnd.Copy(),
+	// 检查是否是赋值运算符
+	if p.NextToken.Type != lexer.EQUAL {
+		return &ast.VarInitializationExpression{
+			IsConst:  isConst,
+			Name:     name,
+			Value:    nil,
+			PosStart: posStart,
+			PosEnd:   p.CurrToken.PosEnd.Copy(),
+		}
+	} else {
+		p.Advance()
+		p.Advance()
+		// 解析变量值表达式
+		value := p.ParseExpression(LOWEST)
+		if p.Err != nil {
+			return nil
+		}
+		return &ast.VarInitializationExpression{
+			IsConst:  isConst,
+			Name:     name,
+			Value:    value,
+			PosStart: posStart,
+			PosEnd:   p.CurrToken.PosEnd.Copy(),
+		}
 	}
 }
 
@@ -1347,7 +1442,15 @@ func (p *Parser) parseNamespaceAccessExpression(left ast.Expression, posStart *u
 		PosStart: posStart,
 	}
 	p.Advance()
-	// 解析成员名
+	// 解析成员名是否为标识符
+	if p.CurrToken.Type != lexer.IDENT {
+		p.Err = &errors.SyntaxError{
+			Message:  "member name must be an identifier.",
+			PosStart: p.CurrToken.PosStart.Copy(),
+			PosEnd:   p.CurrToken.PosEnd.Copy(),
+		}
+		return nil
+	}
 	member := p.parseIdentifierExpression(p.CurrToken.PosStart.Copy())
 	if p.Err != nil {
 		return nil
@@ -1424,7 +1527,15 @@ func (p *Parser) parseMemberAccessExpression(left ast.Expression, posStart *util
 		PosStart: posStart,
 	}
 	p.Advance()
-	// 解析成员名
+	// 解析成员名是否为标识符
+	if p.CurrToken.Type != lexer.IDENT {
+		p.Err = &errors.SyntaxError{
+			Message:  "member name must be an identifier.",
+			PosStart: p.CurrToken.PosStart.Copy(),
+			PosEnd:   p.CurrToken.PosEnd.Copy(),
+		}
+		return nil
+	}
 	member := p.parseIdentifierExpression(p.CurrToken.PosStart.Copy())
 	if p.Err != nil {
 		return nil
@@ -1498,4 +1609,30 @@ func (p *Parser) ParseMapExpression(stat ast.Statement, posStart, statPosStart *
 	}
 	me.PosEnd = p.CurrToken.PosEnd.Copy()
 	return me
+}
+
+// parseThisExpression 解析this表达式
+//
+// 参数:
+//
+//	posStart - 表达式的起始位置
+//
+// 返回值:
+//
+//	this表达式节点ThisExpression
+func (p *Parser) parseThisExpression(posStart *util.Pos) ast.Expression {
+	return &ast.ThisExpression{PosStart: posStart, PosEnd: p.CurrToken.PosEnd.Copy()}
+}
+
+// parseSuperExpression 解析super表达式
+//
+// 参数:
+//
+//	posStart - 表达式的起始位置
+//
+// 返回值:
+//
+//	super表达式节点SuperExpression
+func (p *Parser) parseSuperExpression(posStart *util.Pos) ast.Expression {
+	return &ast.SuperExpression{PosStart: posStart, PosEnd: p.CurrToken.PosEnd.Copy()}
 }

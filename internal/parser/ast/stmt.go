@@ -323,5 +323,37 @@ func (is *ImportStatement) String() string {
 
 // Statement 是标记方法，用于类型判断
 // 实现Statement接口
-func (is *ImportStatement) Statement() {
+func (is *ImportStatement) Statement() {}
+
+// ClassStatement 是class语句节点
+// 用于定义类
+type ClassStatement struct {
+	Name     Expression // 类名
+	Extends  Expression // 父类名
+	Body     Statement  // 类体
+	PosStart *util.Pos  // 类的起始位置
+	PosEnd   *util.Pos  // 类的结束位置
 }
+
+// String 返回class语句的字符串表示
+// 格式为：class <name> extends <extends> <body>
+//
+// 返回值:
+//
+//	class语句的字符串表示
+func (cs *ClassStatement) String() string {
+	var sb strings.Builder
+	sb.WriteString("class ")
+	sb.WriteString(cs.Name.String())
+	if cs.Extends != nil {
+		sb.WriteString(" extends ")
+		sb.WriteString(cs.Extends.String())
+	}
+	sb.WriteString(" ")
+	sb.WriteString(cs.Body.String())
+	return sb.String()
+}
+
+// Statement 是标记方法，用于类型判断
+// 实现Statement接口
+func (cs *ClassStatement) Statement() {}

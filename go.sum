@@ -1,3 +1,5 @@
+github.com/Nomango/datefmt v1.1.2 h1:Ca2sz9wqQ4cdVyBsrcg9d2ct+IlrhCFSadiRHuj2VIY=
+github.com/Nomango/datefmt v1.1.2/go.mod h1:6wXiCAzMna+wuFwViqr6CvSr6KNfurLVeUOSYmzzsmc=
 github.com/fatih/color v1.19.0 h1:Zp3PiM21/9Ld6FzSKyL5c/BULoe/ONr9KlbYVOfG8+w=
 github.com/fatih/color v1.19.0/go.mod h1:zNk67I0ZUT1bEGsSGyCZYZNrHuTkJJB+r6Q9VuMi0LE=
 github.com/mattn/go-colorable v0.1.14 h1:9A9LHSqF/7dyVVX6g0U9cwm9pG3kP9gSzcuIPHPsaIE=

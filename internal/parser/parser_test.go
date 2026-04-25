@@ -621,6 +621,59 @@ func TestParser_ParseImportStatement(t *testing.T) {
 	}
 }
 
+func TestParser_ParseClassStatement(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected *ast.ClassStatement
+	}{
+		{
+			name:  "Class Statement",
+			input: "class A extends B {};",
+			expected: &ast.ClassStatement{
+				Name: &ast.IdentifierExpression{
+					Name:     "A",
+					PosStart: util.NewPos(1, 7, 6, "<test>", "class A extends B {};"),
+					PosEnd:   util.NewPos(1, 8, 7, "<test>", "class A extends B {};"),
+				},
+				Extends: &ast.IdentifierExpression{
+					Name:     "B",
+					PosStart: util.NewPos(1, 17, 16, "<test>", "class A extends B {};"),
+					PosEnd:   util.NewPos(1, 18, 17, "<test>", "class A extends B {};"),
+				},
+				Body: &ast.ExpressionStatement{
+					Expr: &ast.BlockExpression{
+						Statements: []ast.Statement{},
+						PosStart:   util.NewPos(1, 19, 18, "<test>", "class A extends B {};"),
+						PosEnd:     util.NewPos(1, 21, 20, "<test>", "class A extends B {};"),
+					},
+					PosStart: util.NewPos(1, 19, 18, "<test>", "class A extends B {};"),
+					PosEnd:   util.NewPos(1, 21, 20, "<test>", "class A extends B {};"),
+				},
+				PosStart: util.NewPos(1, 1, 0, "<test>", "class A extends B {};"),
+				PosEnd:   util.NewPos(1, 21, 20, "<test>", "class A extends B {};"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.NewLexer("<test>", tt.input)
+			p, _ := NewParser(l)
+			program := p.ParseProgram()
+			expr := program.Statements[0].(*ast.ClassStatement)
+
+			if p.Err != nil {
+				t.Errorf("err = %+v, expected nil", p.Err)
+			}
+
+			if !reflect.DeepEqual(expr, tt.expected) {
+				t.Errorf("expected %+v, got %+v", tt.expected, expr)
+			}
+		})
+	}
+}
+
 func TestParser_ParsePrefixExpression(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -2470,6 +2523,74 @@ func TestParser_ParseMapExpression(t *testing.T) {
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
 			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.MapExpression)
+
+			if p.Err != nil {
+				t.Errorf("err = %+v, expected nil", p.Err)
+			}
+
+			if !reflect.DeepEqual(expr, tt.expected) {
+				t.Errorf("expected %+v, got %+v", tt.expected, expr)
+			}
+		})
+	}
+}
+
+func TestParser_ParseThisExpression(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected *ast.ThisExpression
+	}{
+		{
+			name:  "This Expression",
+			input: "this;",
+			expected: &ast.ThisExpression{
+				PosStart: util.NewPos(1, 1, 0, "<test>", "this;"),
+				PosEnd:   util.NewPos(1, 5, 4, "<test>", "this;"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.NewLexer("<test>", tt.input)
+			p, _ := NewParser(l)
+			program := p.ParseProgram()
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.ThisExpression)
+
+			if p.Err != nil {
+				t.Errorf("err = %+v, expected nil", p.Err)
+			}
+
+			if !reflect.DeepEqual(expr, tt.expected) {
+				t.Errorf("expected %+v, got %+v", tt.expected, expr)
+			}
+		})
+	}
+}
+
+func TestParser_ParseSuperExpression(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected *ast.SuperExpression
+	}{
+		{
+			name:  "Super Expression",
+			input: "super;",
+			expected: &ast.SuperExpression{
+				PosStart: util.NewPos(1, 1, 0, "<test>", "super;"),
+				PosEnd:   util.NewPos(1, 6, 5, "<test>", "super;"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.NewLexer("<test>", tt.input)
+			p, _ := NewParser(l)
+			program := p.ParseProgram()
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.SuperExpression)
 
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
