@@ -5,16 +5,16 @@ import (
 )
 
 var BuiltinClasses = map[string]*object.Class{
-	"Int":       IntClass,
-	"Float":     FloatClass,
-	"Bool":      BoolClass,
-	"String":    StringClass,
-	"List":      ListClass,
-	"Map":       MapClass,
-	"Namespace": NamespaceClass,
-	"Module":    ModuleClass,
-	"Class":     ClassClass,
-	"Instance":  InstanceClass,
-	"Function":  FunctionClass,
-	"Method":    MethodClass,
+	"Int":            IntClass,
+	"Float":          FloatClass,
+	"Bool":           BoolClass,
+	"String":         StringClass,
+	"List":           ListClass,
+	"Map":            MapClass,
+	"Namespace":      NamespaceClass,
+	"Module":         ModuleClass,
+	"Class":          ClassClass,
+	"Instance":       InstanceClass,
+	"Function":       FunctionClass,
+	"Method":         MethodClass,
 }

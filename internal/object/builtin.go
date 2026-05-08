@@ -681,4 +681,541 @@ var Builtins = map[string]Object{
 			return &Float{Value: math.Pow(base, exp)}, nil
 		},
 	},
+	// typeof函数
+	"typeof": &BuiltinFunction{
+		Name:      "typeof",
+		Parameter: []string{"a"},
+		DefaultValue: []Object{
+			nil,
+		},
+		HaveVariadic: false,
+		Fn: func(f *frame.Frame, env *Environment, posStart, posEnd *util.Pos, args ...Object) (Object, error) {
+			a := args[0]
+			return &String{Value: a.Type()}, nil
+		},
+	},
+	// isInstanceOf函数
+	"isInstanceOf": &BuiltinFunction{
+		Name:      "isInstanceOf",
+		Parameter: []string{"obj", "cls"},
+		DefaultValue: []Object{
+			nil,
+		},
+		HaveVariadic: false,
+		Fn: func(f *frame.Frame, env *Environment, posStart, posEnd *util.Pos, args ...Object) (Object, error) {
+			obj := args[0]
+			cls, ok := args[1].(*Class)
+			if !ok {
+				return nil, &errors.TypeError{
+					Frame:    f,
+					Message:  "isInstanceOf() second argument must be a class.",
+					PosStart: posStart,
+					PosEnd:   posEnd,
+				}
+			}
+			switch o := obj.(type) {
+			case *Instance:
+				return &Bool{Value: o.Class == cls}, nil
+			case *Int, *Float, *Bool, *String, *List, *Map, *Namespace, *Class, *Function, *Method, *Module:
+				return &Bool{Value: o.Type() == cls.Name}, nil
+			default:
+				return &Bool{Value: false}, nil
+			}
+		},
+	},
+	// Error 类
+	"Error": ErrorClass,
+	// OperationError 类
+	"OperationError": OperationErrorClass,
+	// MathError 类
+	"MathError": MathErrorClass,
+	// TypeError 类
+	"TypeError": TypeErrorClass,
+	// IndexError 类
+	"IndexError": IndexErrorClass,
+	// VariableError 类
+	"VariableError": VariableErrorClass,
+	// ArgumentError 类
+	"ArgumentError": ArgumentErrorClass,
+	// ModuleError 类
+	"ModuleError": ModuleErrorClass,
+}
+
+// ErrorClass 表示 Error 内置基类的类定义
+var ErrorClass = initErrorClass()
+
+// initErrorClass 初始化 Error 基类
+func initErrorClass() *Class {
+	member := &Environment{
+		Name:  "Error",
+		Store: map[string]*Symbol{},
+		Outer: nil,
+	}
+
+	member.Set("message", &Symbol{Name: "message", Value: &String{Value: ""}, IsConst: false})
+	member.Set("init", &Symbol{Name: "init", Value: &ERRORINIT, IsConst: true})
+
+	return &Class{
+		Name:   "Error",
+		Parent: nil,
+		Member: member,
+	}
+}
+
+// OperationErrorClass 表示 OperationError 内置类的类定义
+var OperationErrorClass = initOperationErrorClass()
+
+// initOperationErrorClass 初始化 OperationError 类
+func initOperationErrorClass() *Class {
+	member := &Environment{
+		Name:  "OperationError",
+		Store: map[string]*Symbol{},
+		Outer: nil,
+	}
+
+	member.Set("message", &Symbol{Name: "message", Value: &String{Value: ""}, IsConst: false})
+	member.Set("init", &Symbol{Name: "init", Value: &OPERATIONERRORINIT, IsConst: true})
+
+	return &Class{
+		Name:   "OperationError",
+		Parent: ErrorClass,
+		Member: member,
+	}
+}
+
+// MathErrorClass 表示 MathError 内置类的类定义
+var MathErrorClass = initMathErrorClass()
+
+// initMathErrorClass 初始化 MathError 类
+func initMathErrorClass() *Class {
+	member := &Environment{
+		Name:  "MathError",
+		Store: map[string]*Symbol{},
+		Outer: nil,
+	}
+
+	member.Set("message", &Symbol{Name: "message", Value: &String{Value: ""}, IsConst: false})
+	member.Set("init", &Symbol{Name: "init", Value: &MATHERRORINIT, IsConst: true})
+
+	return &Class{
+		Name:   "MathError",
+		Parent: ErrorClass,
+		Member: member,
+	}
+}
+
+// TypeErrorClass 表示 TypeError 内置类的类定义
+var TypeErrorClass = initTypeErrorClass()
+
+// initTypeErrorClass 初始化 TypeError 类
+func initTypeErrorClass() *Class {
+	member := &Environment{
+		Name:  "TypeError",
+		Store: map[string]*Symbol{},
+		Outer: nil,
+	}
+
+	member.Set("message", &Symbol{Name: "message", Value: &String{Value: ""}, IsConst: false})
+	member.Set("init", &Symbol{Name: "init", Value: &TYPEERRORINIT, IsConst: true})
+
+	return &Class{
+		Name:   "TypeError",
+		Parent: ErrorClass,
+		Member: member,
+	}
+}
+
+// IndexErrorClass 表示 IndexError 内置类的类定义
+var IndexErrorClass = initIndexErrorClass()
+
+// initIndexErrorClass 初始化 IndexError 类
+func initIndexErrorClass() *Class {
+	member := &Environment{
+		Name:  "IndexError",
+		Store: map[string]*Symbol{},
+		Outer: nil,
+	}
+
+	member.Set("message", &Symbol{Name: "message", Value: &String{Value: ""}, IsConst: false})
+	member.Set("init", &Symbol{Name: "init", Value: &INDEXERRORINIT, IsConst: true})
+
+	return &Class{
+		Name:   "IndexError",
+		Parent: ErrorClass,
+		Member: member,
+	}
+}
+
+// VariableErrorClass 表示 VariableError 内置类的类定义
+var VariableErrorClass = initVariableErrorClass()
+
+// initVariableErrorClass 初始化 VariableError 类
+func initVariableErrorClass() *Class {
+	member := &Environment{
+		Name:  "VariableError",
+		Store: map[string]*Symbol{},
+		Outer: nil,
+	}
+
+	member.Set("message", &Symbol{Name: "message", Value: &String{Value: ""}, IsConst: false})
+	member.Set("init", &Symbol{Name: "init", Value: &VARIABLEERRORINIT, IsConst: true})
+
+	return &Class{
+		Name:   "VariableError",
+		Parent: ErrorClass,
+		Member: member,
+	}
+}
+
+// ArgumentErrorClass 表示 ArgumentError 内置类的类定义
+var ArgumentErrorClass = initArgumentErrorClass()
+
+// initArgumentErrorClass 初始化 ArgumentError 类
+func initArgumentErrorClass() *Class {
+	member := &Environment{
+		Name:  "ArgumentError",
+		Store: map[string]*Symbol{},
+		Outer: nil,
+	}
+
+	member.Set("message", &Symbol{Name: "message", Value: &String{Value: ""}, IsConst: false})
+	member.Set("init", &Symbol{Name: "init", Value: &ARGUMENTERRORINIT, IsConst: true})
+
+	return &Class{
+		Name:   "ArgumentError",
+		Parent: ErrorClass,
+		Member: member,
+	}
+}
+
+// ModuleErrorClass 表示 ModuleError 内置类的类定义
+var ModuleErrorClass = initModuleErrorClass()
+
+// initModuleErrorClass 初始化 ModuleError 类
+func initModuleErrorClass() *Class {
+	member := &Environment{
+		Name:  "ModuleError",
+		Store: map[string]*Symbol{},
+		Outer: nil,
+	}
+
+	member.Set("message", &Symbol{Name: "message", Value: &String{Value: ""}, IsConst: false})
+	member.Set("init", &Symbol{Name: "init", Value: &MODULEERRORINIT, IsConst: true})
+
+	return &Class{
+		Name:   "ModuleError",
+		Parent: ErrorClass,
+		Member: member,
+	}
+}
+
+var (
+	// ERRORINIT 表示 Error 基类的 init 方法
+	ERRORINIT = BuiltinFunction{
+		Name:         "init",
+		Parameter:    []string{"message"},
+		DefaultValue: []Object{&String{Value: ""}},
+		HaveVariadic: false,
+		Fn:           ErrorInit,
+	}
+	// OPERATIONERRORINIT 表示 OperationError 类的 init 方法
+	OPERATIONERRORINIT = BuiltinFunction{
+		Name:         "init",
+		Parameter:    []string{"message"},
+		DefaultValue: []Object{&String{Value: ""}},
+		HaveVariadic: false,
+		Fn:           OperationErrorInit,
+	}
+	// MATHERRORINIT 表示 MathError 类的 init 方法
+	MATHERRORINIT = BuiltinFunction{
+		Name:         "init",
+		Parameter:    []string{"message"},
+		DefaultValue: []Object{&String{Value: ""}},
+		HaveVariadic: false,
+		Fn:           MathErrorInit,
+	}
+	// TYPEERRORINIT 表示 TypeError 类的 init 方法
+	TYPEERRORINIT = BuiltinFunction{
+		Name:         "init",
+		Parameter:    []string{"message"},
+		DefaultValue: []Object{&String{Value: ""}},
+		HaveVariadic: false,
+		Fn:           TypeErrorInit,
+	}
+	// INDEXERRORINIT 表示 IndexError 类的 init 方法
+	INDEXERRORINIT = BuiltinFunction{
+		Name:         "init",
+		Parameter:    []string{"message"},
+		DefaultValue: []Object{&String{Value: ""}},
+		HaveVariadic: false,
+		Fn:           IndexErrorInit,
+	}
+	// VARIABLEERRORINIT 表示 VariableError 类的 init 方法
+	VARIABLEERRORINIT = BuiltinFunction{
+		Name:         "init",
+		Parameter:    []string{"message"},
+		DefaultValue: []Object{&String{Value: ""}},
+		HaveVariadic: false,
+		Fn:           VariableErrorInit,
+	}
+	// ARGUMENTERRORINIT 表示 ArgumentError 类的 init 方法
+	ARGUMENTERRORINIT = BuiltinFunction{
+		Name:         "init",
+		Parameter:    []string{"message"},
+		DefaultValue: []Object{&String{Value: ""}},
+		HaveVariadic: false,
+		Fn:           ArgumentErrorInit,
+	}
+	// MODULEERRORINIT 表示 ModuleError 类的 init 方法
+	MODULEERRORINIT = BuiltinFunction{
+		Name:         "init",
+		Parameter:    []string{"message"},
+		DefaultValue: []Object{&String{Value: ""}},
+		HaveVariadic: false,
+		Fn:           ModuleErrorInit,
+	}
+)
+
+// ErrorInit 实现 Error 基类的 init 构造方法
+func ErrorInit(f *frame.Frame, env *Environment, posStart, posEnd *util.Pos, args ...Object) (Object, error) {
+	this, ok := args[0].(*Instance)
+	if this == nil || !ok {
+		return nil, &errors.TypeError{
+			Frame:    f,
+			Message:  "method init() called without instance.",
+			PosStart: posStart,
+			PosEnd:   posEnd,
+		}
+	}
+
+	message := args[1].(*String)
+	if message == nil {
+		return nil, &errors.TypeError{
+			Frame:    f,
+			Message:  "message must be a string.",
+			PosStart: posStart,
+			PosEnd:   posEnd,
+		}
+	}
+
+	// 将 message 存储到实例的成员中
+	this.Member.Set("message", &Symbol{
+		Name:    "message",
+		Value:   message,
+		IsConst: false,
+	})
+
+	return &Null{}, nil
+}
+
+// OperationErrorInit 实现 OperationError 类的 init 构造方法
+func OperationErrorInit(f *frame.Frame, env *Environment, posStart, posEnd *util.Pos, args ...Object) (Object, error) {
+	return ErrorInit(f, env, posStart, posEnd, args...)
+}
+
+// MathErrorInit 实现 MathError 类的 init 构造方法
+func MathErrorInit(f *frame.Frame, env *Environment, posStart, posEnd *util.Pos, args ...Object) (Object, error) {
+	return ErrorInit(f, env, posStart, posEnd, args...)
+}
+
+// TypeErrorInit 实现 TypeError 类的 init 构造方法
+func TypeErrorInit(f *frame.Frame, env *Environment, posStart, posEnd *util.Pos, args ...Object) (Object, error) {
+	return ErrorInit(f, env, posStart, posEnd, args...)
+}
+
+// IndexErrorInit 实现 IndexError 类的 init 构造方法
+func IndexErrorInit(f *frame.Frame, env *Environment, posStart, posEnd *util.Pos, args ...Object) (Object, error) {
+	return ErrorInit(f, env, posStart, posEnd, args...)
+}
+
+// VariableErrorInit 实现 VariableError 类的 init 构造方法
+func VariableErrorInit(f *frame.Frame, env *Environment, posStart, posEnd *util.Pos, args ...Object) (Object, error) {
+	return ErrorInit(f, env, posStart, posEnd, args...)
+}
+
+// ArgumentErrorInit 实现 ArgumentError 类的 init 构造方法
+func ArgumentErrorInit(f *frame.Frame, env *Environment, posStart, posEnd *util.Pos, args ...Object) (Object, error) {
+	return ErrorInit(f, env, posStart, posEnd, args...)
+}
+
+// ModuleErrorInit 实现 ModuleError 类的 init 构造方法
+func ModuleErrorInit(f *frame.Frame, env *Environment, posStart, posEnd *util.Pos, args ...Object) (Object, error) {
+	return ErrorInit(f, env, posStart, posEnd, args...)
+}
+
+// ConvertErrorToInstance 将错误类转换为实例
+//
+// 参数:
+//
+//	err - 错误
+//	env - 执行环境
+//
+// 返回值:
+//
+//	Object - 转换后的实例
+func ConvertErrorToInstance(err error, env *Environment) Object {
+	switch e := err.(type) {
+	case *errors.OperationError:
+		return &Instance{
+			Class: OperationErrorClass,
+			Member: &Environment{
+				Name: "instance of class OperationError",
+				Store: map[string]*Symbol{
+					"message": {
+						Name:    "message",
+						Value:   &String{Value: e.Message},
+						IsConst: false,
+					},
+					"init": {
+						Name:    "init",
+						Value:   &OPERATIONERRORINIT,
+						IsConst: true,
+					},
+				},
+				Outer: env,
+			},
+		}
+	case *errors.MathError:
+		return &Instance{
+			Class: MathErrorClass,
+			Member: &Environment{
+				Name: "instance of class MathError",
+				Store: map[string]*Symbol{
+					"message": {
+						Name:    "message",
+						Value:   &String{Value: e.Message},
+						IsConst: false,
+					},
+					"init": {
+						Name:    "init",
+						Value:   &MATHERRORINIT,
+						IsConst: true,
+					},
+				},
+				Outer: env,
+			},
+		}
+	case *errors.TypeError:
+		return &Instance{
+			Class: TypeErrorClass,
+			Member: &Environment{
+				Name: "instance of class TypeError",
+				Store: map[string]*Symbol{
+					"message": {
+						Name:    "message",
+						Value:   &String{Value: e.Message},
+						IsConst: false,
+					},
+					"init": {
+						Name:    "init",
+						Value:   &TYPEERRORINIT,
+						IsConst: true,
+					},
+				},
+				Outer: env,
+			},
+		}
+	case *errors.IndexError:
+		return &Instance{
+			Class: IndexErrorClass,
+			Member: &Environment{
+				Name: "instance of class IndexError",
+				Store: map[string]*Symbol{
+					"message": {
+						Name:    "message",
+						Value:   &String{Value: e.Message},
+						IsConst: false,
+					},
+					"init": {
+						Name:    "init",
+						Value:   &INDEXERRORINIT,
+						IsConst: true,
+					},
+				},
+				Outer: env,
+			},
+		}
+	case *errors.VariableError:
+		return &Instance{
+			Class: VariableErrorClass,
+			Member: &Environment{
+				Name: "instance of class VariableError",
+				Store: map[string]*Symbol{
+					"message": {
+						Name:    "message",
+						Value:   &String{Value: e.Message},
+						IsConst: false,
+					},
+					"init": {
+						Name:    "init",
+						Value:   &VARIABLEERRORINIT,
+						IsConst: true,
+					},
+				},
+				Outer: env,
+			},
+		}
+	case *errors.ArgumentError:
+		return &Instance{
+			Class: ArgumentErrorClass,
+			Member: &Environment{
+				Name: "instance of class ArgumentError",
+				Store: map[string]*Symbol{
+					"message": {
+						Name:    "message",
+						Value:   &String{Value: e.Message},
+						IsConst: false,
+					},
+					"init": {
+						Name:    "init",
+						Value:   &ARGUMENTERRORINIT,
+						IsConst: true,
+					},
+				},
+				Outer: env,
+			},
+		}
+	case *errors.ModuleError:
+		return &Instance{
+			Class: ModuleErrorClass,
+			Member: &Environment{
+				Name: "instance of class ModuleError",
+				Store: map[string]*Symbol{
+					"message": {
+						Name:    "message",
+						Value:   &String{Value: e.Message},
+						IsConst: false,
+					},
+					"init": {
+						Name:    "init",
+						Value:   &MODULEERRORINIT,
+						IsConst: true,
+					},
+				},
+				Outer: env,
+			},
+		}
+	case *UserError:
+		return e.Err
+	default:
+		return &Instance{
+			Class: ErrorClass,
+			Member: &Environment{
+				Name: "instance of class Error",
+				Store: map[string]*Symbol{
+					"message": {
+						Name:    "message",
+						Value:   &String{Value: e.Error()},
+						IsConst: false,
+					},
+					"init": {
+						Name:    "init",
+						Value:   &ERRORINIT,
+						IsConst: true,
+					},
+				},
+				Outer: env,
+			},
+		}
+	}
 }

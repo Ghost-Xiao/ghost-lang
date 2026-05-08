@@ -36,16 +36,12 @@ func initFloatClass() *object.Class {
 
 var (
 	// FLOATINIT 表示 Float 类的 init 方法
-	FLOATINIT = object.Method{
-		Name: "init",
-		Function: &object.BuiltinFunction{
-			Name:         "init",
-			Parameter:    []string{"value"},
-			DefaultValue: []object.Object{&object.Float{Value: 0.0}},
-			HaveVariadic: false,
-			Fn:           FloatInit,
-		},
-		Instance: nil,
+	FLOATINIT = object.BuiltinFunction{
+		Name:         "init",
+		Parameter:    []string{"value"},
+		DefaultValue: []object.Object{&object.Float{Value: 0.0}},
+		HaveVariadic: false,
+		Fn:           FloatInit,
 	}
 )
 

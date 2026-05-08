@@ -61,6 +61,10 @@ const (
 	EXTENDS   = "EXTENDS"   // extends关键字，用于继承类
 	THIS      = "THIS"      // this关键字，用于引用当前实例
 	SUPER     = "SUPER"     // super关键字，用于引用父类实例
+	TRY       = "TRY"       // try关键字，用于处理异常
+	CATCH     = "CATCH"     // catch关键字，用于处理异常
+	FINALLY   = "FINALLY"   // finally关键字，用于处理异常
+	THROW     = "THROW"     // throw关键字，用于抛出异常
 
 	// 运算符令牌
 	PLUS         = "PLUS"         // 加号运算符(+)
@@ -139,6 +143,10 @@ var Keywords = map[string]string{
 	"extends":   EXTENDS,   // extends关键字
 	"this":      THIS,      // this关键字
 	"super":     SUPER,     // super关键字
+	"try":       TRY,       // try关键字
+	"catch":     CATCH,     // catch关键字
+	"finally":   FINALLY,   // finally关键字
+	"throw":     THROW,     // throw关键字
 }
 
 // Operators 操作符映射表，将字符串操作符映射到对应的令牌类型

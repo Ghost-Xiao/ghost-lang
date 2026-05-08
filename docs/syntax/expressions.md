@@ -233,7 +233,7 @@ a[0] = 40;
 [x, y, z] = [10, 20, 30];
 [l[0], b, A::a] = [4, 5, 6];
 
-import math;
+import "math";
 math.PI = 3.14;
 ```
 
@@ -344,11 +344,13 @@ Argument ::= Expression | ""
 println("hello");
 add(1, , 2);
 len([1, 2, 3]);
+MyClass();
 ```
 
 **注意事项：**
 - 调用函数时，参数列表中的空参数（逗号分隔，空参数代表使用默认值）会被忽略。
 - 调用函数时，如果参数数量少于函数定义的参数数量，未被赋值的参数会使用默认值。
+- 当调用的对象是类时，如果该类没有构造函数，则不能传递任何参数；如果有构造函数，必须传递与构造函数参数数量相同的参数，ghost会自动调用构造函数创建实例对象。
 
 ### 解包参数(Unpack Argument)
 用于将列表中的元素解包为多个参数传递给函数。
@@ -424,14 +426,19 @@ MemberAccessExpression ::= Identifier "." Identifier
 
 **示例：**
 ```ghost
-import math;
+import "math";
 math.PI;
 math.sqrt(2);
+
+var err = Error("这是一个错误");
+println(err.message); // 输出: 这是一个错误
+
+println("hello".upper()); // 输出: HELLO
 ```
 
 **注意事项：**
-- 成员访问表达式用于访问导入模块中定义的变量或函数
-- 成员访问表达式可以作为左值使用，用于修改模块中的变量
+- 成员访问表达式用于访问导入模块中定义的变量或函数、实例的成员以及内置类型的成员
+- 成员访问表达式可以作为左值使用，用于修改模块中的变量或实例的成员
 
 ## 范围表达式(RangeExpression)
 用于创建整数范围的表达式节点。
@@ -476,3 +483,67 @@ ContainsExpression ::= Expression "contains" Expression
 - 对于映射，检查键是否存在于映射中
 - 不支持检查子列表是否存在
 - 对于映射，查询值必须是可哈希类型
+
+## This 表达式(ThisExpression)
+
+用于在类的方法内部引用当前实例。
+
+**语法定义：**
+```
+ThisExpression ::= "this"
+```
+
+**示例：**
+```ghost
+class Person {
+    var name = "";
+    
+    func setName(name) {
+        this.name = name;  // 使用 this 访问当前实例的 name 属性
+    };
+};
+```
+
+**注意事项：**
+- `this` 只能在类的方法内部使用
+- `this` 引用当前正在执行方法的对象实例
+
+## Super 表达式(SuperExpression)
+
+用于在子类中引用父类的成员。
+
+**语法定义：**
+```
+SuperExpression ::= "super"
+```
+
+**示例：**
+```ghost
+class Animal {
+    var name = "";
+    
+    func init(name) {
+        this.name = name;
+    };
+    
+    func speak() {
+        println("...");
+    };
+};
+
+class Dog extends Animal {
+    func init(name) {
+        super.init(name);  // 调用父类的构造函数
+    };
+    
+    func speak() {
+        super.speak();  // 调用父类的方法
+        println("Woof!");
+    };
+};
+```
+
+**注意事项：**
+- `super` 只能在子类的方法内部使用
+- `super` 可以用来调用父类的构造函数和方法
+- 使用 `super.成员名` 访问父类的成员

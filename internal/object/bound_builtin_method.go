@@ -11,8 +11,8 @@ import (
 
 // BoundBuiltinMethod 表示绑定的内置方法类型，实现了Object接口
 type BoundBuiltinMethod struct {
-	Function *Method // 底层函数
-	Receiver Object  // 实例接收者
+	Function *BuiltinFunction // 底层函数
+	Receiver Object           // 实例接收者
 }
 
 // Type 返回值的类型
@@ -31,7 +31,7 @@ func (b *BoundBuiltinMethod) Type() string {
 //	string - 格式化的字符串表示
 func (b *BoundBuiltinMethod) String() string {
 	var params []string
-	params = b.Function.Function.(*BuiltinFunction).Parameter
+	params = b.Function.Parameter
 	return fmt.Sprintf("func %s(%s) {...} on %s", b.Function.Name, strings.Join(params, ", "), b.Receiver.String())
 }
 

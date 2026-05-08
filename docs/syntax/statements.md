@@ -195,3 +195,112 @@ import "math";
 math.PI;
 math.sqrt(4);
 ```
+
+## Try 语句(TryStatement)
+
+用于异常处理的语句，支持 try、catch 和 finally 块。
+
+**语法定义：**
+```
+TryStatement ::= "try" Statement ("catch" Identifier Statement)? ("finally" Statement)?
+```
+
+**示例：**
+```ghost
+try {
+    // 可能抛出异常的代码
+    var x = 10 / 0;
+} catch e {
+    println("捕获到异常:", e);
+} finally {
+    println("清理工作");
+};
+
+try {
+    throw Error("自定义错误");
+} catch err {
+    println(err);
+};
+```
+
+**注意事项：**
+- `try` 块是必需的，用于包裹可能抛出异常的代码
+- `catch` 块是可选的，用于捕获和处理异常
+- `finally` 块是可选的，用于执行无论是否发生异常都需要执行的清理代码
+- `catch` 块必须有一个参数，用于捕获异常实例
+- finally 块始终会执行，即使 try 或 catch 块中有 return 语句
+
+## Throw 语句(ThrowStatement)
+
+用于抛出异常的语句。
+
+**语法定义：**
+```
+ThrowStatement ::= "throw" Expression
+```
+
+**示例：**
+```ghost
+throw Error("发生了错误");
+throw TypeError("类型不匹配");
+
+func divide(x, y) {
+    if y == 0 {
+        throw Error("除数不能为零");
+    };
+    return x / y;
+};
+```
+
+**注意事项：**
+- throw 语句必须抛出 Error 类或其子类的实例
+- 异常可以在 try-catch 块中被捕获和处理
+
+## 类声明语句(ClassDeclarationStatement)
+
+用于声明类的语句，类可以包含成员变量和方法。
+
+**语法定义：**
+```
+ClassDeclarationStatement ::= "class" Identifier ("extends" Identifier)? Statement
+```
+
+**示例：**
+```ghost
+class Person {
+    var name = "";
+    var age = 0;
+    
+    func init(name, age) {
+        this.name = name;
+        this.age = age;
+    };
+    
+    func greet() {
+        println("Hello, my name is", this.name);
+    };
+};
+
+class Student extends Person {
+    var grade = 0;
+    
+    func init(name, age, grade) {
+        super.init(name, age);
+        this.grade = grade;
+    };
+    
+    func study() {
+        println(this.name, "is studying in grade", this.grade);
+    };
+};
+```
+
+**注意事项：**
+- 类声明使用 `class` 关键字
+- 可以使用 `extends` 关键字继承另一个类
+- 类中可以包含变量声明和函数声明
+- 类中的函数称为方法
+- 使用 `this` 关键字访问当前实例的成员
+- 使用 `super` 关键字访问父类的成员
+- 类的构造函数通常命名为 `init`
+- 类声明后可以通过 `类名()` 或 `new 类名()` 创建实例

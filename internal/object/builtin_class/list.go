@@ -44,124 +44,84 @@ func initListClass() *object.Class {
 
 var (
 	// LISTINIT 表示 List 类的 init 方法
-	LISTINIT = object.Method{
-		Name: "init",
-		Function: &object.BuiltinFunction{
-			Name:         "init",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           ListInit,
-		},
-		Instance: nil,
+	LISTINIT = object.BuiltinFunction{
+		Name:         "init",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           ListInit,
 	}
 	// LISTAPPEND 表示 List 类的 append 方法
-	LISTAPPEND = object.Method{
-		Name: "append",
-		Function: &object.BuiltinFunction{
-			Name:         "append",
-			Parameter:    []string{"item"},
-			DefaultValue: []object.Object{nil},
-			HaveVariadic: false,
-			Fn:           ListAppend,
-		},
-		Instance: nil,
+	LISTAPPEND = object.BuiltinFunction{
+		Name:         "append",
+		Parameter:    []string{"item"},
+		DefaultValue: []object.Object{nil},
+		HaveVariadic: false,
+		Fn:           ListAppend,
 	}
 	// LISTPOP 表示 List 类的 pop 方法
-	LISTPOP = object.Method{
-		Name: "pop",
-		Function: &object.BuiltinFunction{
-			Name:         "pop",
-			Parameter:    []string{"idx"},
-			DefaultValue: []object.Object{&object.Int{Value: -1}},
-			HaveVariadic: false,
-			Fn:           ListPop,
-		},
-		Instance: nil,
+	LISTPOP = object.BuiltinFunction{
+		Name:         "pop",
+		Parameter:    []string{"idx"},
+		DefaultValue: []object.Object{&object.Int{Value: -1}},
+		HaveVariadic: false,
+		Fn:           ListPop,
 	}
 	// LISTINSERT 表示 List 类的 insert 方法
-	LISTINSERT = object.Method{
-		Name: "insert",
-		Function: &object.BuiltinFunction{
-			Name:         "insert",
-			Parameter:    []string{"idx", "item"},
-			DefaultValue: []object.Object{nil, nil},
-			HaveVariadic: false,
-			Fn:           ListInsert,
-		},
-		Instance: nil,
+	LISTINSERT = object.BuiltinFunction{
+		Name:         "insert",
+		Parameter:    []string{"idx", "item"},
+		DefaultValue: []object.Object{nil, nil},
+		HaveVariadic: false,
+		Fn:           ListInsert,
 	}
 	// LISTREMOVE 表示 List 类的 remove 方法
-	LISTREMOVE = object.Method{
-		Name: "remove",
-		Function: &object.BuiltinFunction{
-			Name:         "remove",
-			Parameter:    []string{"item"},
-			DefaultValue: []object.Object{nil},
-			HaveVariadic: false,
-			Fn:           ListRemove,
-		},
-		Instance: nil,
+	LISTREMOVE = object.BuiltinFunction{
+		Name:         "remove",
+		Parameter:    []string{"item"},
+		DefaultValue: []object.Object{nil},
+		HaveVariadic: false,
+		Fn:           ListRemove,
 	}
 	// LISTINDEXOF 表示 List 类的 indexOf 方法
-	LISTINDEXOF = object.Method{
-		Name: "indexOf",
-		Function: &object.BuiltinFunction{
-			Name:         "indexOf",
-			Parameter:    []string{"item"},
-			DefaultValue: []object.Object{nil},
-			HaveVariadic: false,
-			Fn:           ListIndexOf,
-		},
-		Instance: nil,
+	LISTINDEXOF = object.BuiltinFunction{
+		Name:         "indexOf",
+		Parameter:    []string{"item"},
+		DefaultValue: []object.Object{nil},
+		HaveVariadic: false,
+		Fn:           ListIndexOf,
 	}
 	// LISTREVERSE 表示 List 类的 reverse 方法
-	LISTREVERSE = object.Method{
-		Name: "reverse",
-		Function: &object.BuiltinFunction{
-			Name:         "reverse",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           ListReverse,
-		},
-		Instance: nil,
+	LISTREVERSE = object.BuiltinFunction{
+		Name:         "reverse",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           ListReverse,
 	}
 	// LISTSORT 表示 List 类的 sort 方法
-	LISTSORT = object.Method{
-		Name: "sort",
-		Function: &object.BuiltinFunction{
-			Name:         "sort",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           ListSort,
-		},
-		Instance: nil,
+	LISTSORT = object.BuiltinFunction{
+		Name:         "sort",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           ListSort,
 	}
 	// LISTJOIN 表示 List 类的 join 方法
-	LISTJOIN = object.Method{
-		Name: "join",
-		Function: &object.BuiltinFunction{
-			Name:         "join",
-			Parameter:    []string{"sep"},
-			DefaultValue: []object.Object{nil},
-			HaveVariadic: false,
-			Fn:           ListJoin,
-		},
-		Instance: nil,
+	LISTJOIN = object.BuiltinFunction{
+		Name:         "join",
+		Parameter:    []string{"sep"},
+		DefaultValue: []object.Object{nil},
+		HaveVariadic: false,
+		Fn:           ListJoin,
 	}
 	// LISTSLICE 表示 List 类的 slice 方法
-	LISTSLICE = object.Method{
-		Name: "slice",
-		Function: &object.BuiltinFunction{
-			Name:         "slice",
-			Parameter:    []string{"start", "end"},
-			DefaultValue: []object.Object{nil, nil},
-			HaveVariadic: false,
-			Fn:           ListSlice,
-		},
-		Instance: nil,
+	LISTSLICE = object.BuiltinFunction{
+		Name:         "slice",
+		Parameter:    []string{"start", "end"},
+		DefaultValue: []object.Object{nil, nil},
+		HaveVariadic: false,
+		Fn:           ListSlice,
 	}
 )
 

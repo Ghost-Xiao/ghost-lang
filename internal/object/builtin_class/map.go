@@ -37,64 +37,44 @@ func initMapClass() *object.Class {
 
 var (
 	// MAPINIT 表示 Map 类的 init 方法
-	MAPINIT = object.Method{
-		Name: "init",
-		Function: &object.BuiltinFunction{
-			Name:         "init",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           MapInit,
-		},
-		Instance: nil,
+	MAPINIT = object.BuiltinFunction{
+		Name:         "init",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           MapInit,
 	}
 	// MAPKEYS 表示 Map 类的 keys 方法
-	MAPKEYS = object.Method{
-		Name: "keys",
-		Function: &object.BuiltinFunction{
-			Name:         "keys",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           MapKeys,
-		},
-		Instance: nil,
+	MAPKEYS = object.BuiltinFunction{
+		Name:         "keys",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           MapKeys,
 	}
 	// MAPVALUES 表示 Map 类的 values 方法
-	MAPVALUES = object.Method{
-		Name: "values",
-		Function: &object.BuiltinFunction{
-			Name:         "values",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           MapValues,
-		},
-		Instance: nil,
+	MAPVALUES = object.BuiltinFunction{
+		Name:         "values",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           MapValues,
 	}
 	// MAPHASKEY 表示 Map 类的 hasKey 方法
-	MAPHASKEY = object.Method{
-		Name: "hasKey",
-		Function: &object.BuiltinFunction{
-			Name:         "hasKey",
-			Parameter:    []string{"key"},
-			DefaultValue: []object.Object{nil},
-			HaveVariadic: false,
-			Fn:           MapHasKey,
-		},
-		Instance: nil,
+	MAPHASKEY = object.BuiltinFunction{
+		Name:         "hasKey",
+		Parameter:    []string{"key"},
+		DefaultValue: []object.Object{nil},
+		HaveVariadic: false,
+		Fn:           MapHasKey,
 	}
 	// MAPREMOVE 表示 Map 类的 remove 方法
-	MAPREMOVE = object.Method{
-		Name: "remove",
-		Function: &object.BuiltinFunction{
-			Name:         "remove",
-			Parameter:    []string{"key"},
-			DefaultValue: []object.Object{nil},
-			HaveVariadic: false,
-			Fn:           MapRemove,
-		},
-		Instance: nil,
+	MAPREMOVE = object.BuiltinFunction{
+		Name:         "remove",
+		Parameter:    []string{"key"},
+		DefaultValue: []object.Object{nil},
+		HaveVariadic: false,
+		Fn:           MapRemove,
 	}
 )
 

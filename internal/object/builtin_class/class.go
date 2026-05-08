@@ -36,52 +36,36 @@ func initClassClass() *object.Class {
 
 var (
 	// CLASSNAME 表示 Class 类的 name 方法
-	CLASSNAME = object.Method{
-		Name: "name",
-		Function: &object.BuiltinFunction{
-			Name:         "name",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           ClassName,
-		},
-		Instance: nil,
+	CLASSNAME = object.BuiltinFunction{
+		Name:         "name",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           ClassName,
 	}
 	// CLASSSUPERCLASS 表示 Class 类的 superclass 方法
-	CLASSSUPERCLASS = object.Method{
-		Name: "superclass",
-		Function: &object.BuiltinFunction{
-			Name:         "superclass",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           ClassSuperclass,
-		},
-		Instance: nil,
+	CLASSSUPERCLASS = object.BuiltinFunction{
+		Name:         "superclass",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           ClassSuperclass,
 	}
 	// CLASSMETHODS 表示 Class 类的 methods 方法
-	CLASSMETHODS = object.Method{
-		Name: "methods",
-		Function: &object.BuiltinFunction{
-			Name:         "methods",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           ClassMethods,
-		},
-		Instance: nil,
+	CLASSMETHODS = object.BuiltinFunction{
+		Name:         "methods",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           ClassMethods,
 	}
 	// CLASSISSUBCLASSOF 表示 Class 类的 isSubclassOf 方法
-	CLASSISSUBCLASSOF = object.Method{
-		Name: "isSubclassOf",
-		Function: &object.BuiltinFunction{
-			Name:         "isSubclassOf",
-			Parameter:    []string{"cls"},
-			DefaultValue: []object.Object{nil},
-			HaveVariadic: false,
-			Fn:           ClassIsSubclassOf,
-		},
-		Instance: nil,
+	CLASSISSUBCLASSOF = object.BuiltinFunction{
+		Name:         "isSubclassOf",
+		Parameter:    []string{"cls"},
+		DefaultValue: []object.Object{nil},
+		HaveVariadic: false,
+		Fn:           ClassIsSubclassOf,
 	}
 )
 
@@ -202,7 +186,10 @@ func ClassMethods(f *frame.Frame, env *object.Environment, posStart, posEnd *uti
 
 	methods := make([]object.Object, 0, len(classObj.Member.Store))
 	for name, symbol := range classObj.Member.Store {
-		if _, ok := symbol.Value.(*object.Method); ok {
+		if _, ok := symbol.Value.(*object.Function); ok {
+			methods = append(methods, &object.String{Value: name})
+		}
+		if _, ok := symbol.Value.(*object.BuiltinFunction); ok {
 			methods = append(methods, &object.String{Value: name})
 		}
 	}

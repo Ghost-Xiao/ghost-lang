@@ -44,112 +44,76 @@ func initStringClass() *object.Class {
 
 var (
 	// STRINGINIT 表示 String 类的 init 方法
-	STRINGINIT = object.Method{
-		Name: "init",
-		Function: &object.BuiltinFunction{
-			Name:         "init",
-			Parameter:    []string{"value"},
-			DefaultValue: []object.Object{&object.String{Value: ""}},
-			HaveVariadic: false,
-			Fn:           StringInit,
-		},
-		Instance: nil,
+	STRINGINIT = object.BuiltinFunction{
+		Name:         "init",
+		Parameter:    []string{"value"},
+		DefaultValue: []object.Object{&object.String{Value: ""}},
+		HaveVariadic: false,
+		Fn:           StringInit,
 	}
 	// STRINGUPPER 表示 String 类的 upper 方法
-	STRINGUPPER = object.Method{
-		Name: "upper",
-		Function: &object.BuiltinFunction{
-			Name:         "upper",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           StringUpper,
-		},
-		Instance: nil,
+	STRINGUPPER = object.BuiltinFunction{
+		Name:         "upper",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           StringUpper,
 	}
 	// STRINGLOWER 表示 String 类的 lower 方法
-	STRINGLOWER = object.Method{
-		Name: "lower",
-		Function: &object.BuiltinFunction{
-			Name:         "lower",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           StringLower,
-		},
-		Instance: nil,
+	STRINGLOWER = object.BuiltinFunction{
+		Name:         "lower",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           StringLower,
 	}
 	// STRINGSTARTSWITH 表示 String 类的 startsWith 方法
-	STRINGSTARTSWITH = object.Method{
-		Name: "startsWith",
-		Function: &object.BuiltinFunction{
-			Name:         "startsWith",
-			Parameter:    []string{"prefix"},
-			DefaultValue: []object.Object{nil},
-			HaveVariadic: false,
-			Fn:           StringStartsWith,
-		},
-		Instance: nil,
+	STRINGSTARTSWITH = object.BuiltinFunction{
+		Name:         "startsWith",
+		Parameter:    []string{"prefix"},
+		DefaultValue: []object.Object{nil},
+		HaveVariadic: false,
+		Fn:           StringStartsWith,
 	}
 	// STRINGENDSWITH 表示 String 类的 endsWith 方法
-	STRINGENDSWITH = object.Method{
-		Name: "endsWith",
-		Function: &object.BuiltinFunction{
-			Name:         "endsWith",
-			Parameter:    []string{"suffix"},
-			DefaultValue: []object.Object{nil},
-			HaveVariadic: false,
-			Fn:           StringEndsWith,
-		},
-		Instance: nil,
+	STRINGENDSWITH = object.BuiltinFunction{
+		Name:         "endsWith",
+		Parameter:    []string{"suffix"},
+		DefaultValue: []object.Object{nil},
+		HaveVariadic: false,
+		Fn:           StringEndsWith,
 	}
 	// STRINGSPLIT 表示 String 类的 split 方法
-	STRINGSPLIT = object.Method{
-		Name: "split",
-		Function: &object.BuiltinFunction{
-			Name:         "split",
-			Parameter:    []string{"del"},
-			DefaultValue: []object.Object{nil},
-			HaveVariadic: false,
-			Fn:           StringSplit,
-		},
-		Instance: nil,
+	STRINGSPLIT = object.BuiltinFunction{
+		Name:         "split",
+		Parameter:    []string{"del"},
+		DefaultValue: []object.Object{nil},
+		HaveVariadic: false,
+		Fn:           StringSplit,
 	}
 	// STRINGTRIM 表示 String 类的 trim 方法
-	STRINGTRIM = object.Method{
-		Name: "trim",
-		Function: &object.BuiltinFunction{
-			Name:         "trim",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           StringTrim,
-		},
-		Instance: nil,
+	STRINGTRIM = object.BuiltinFunction{
+		Name:         "trim",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           StringTrim,
 	}
 	// STRINGREPLACE 表示 String 类的 replace 方法
-	STRINGREPLACE = object.Method{
-		Name: "replace",
-		Function: &object.BuiltinFunction{
-			Name:         "replace",
-			Parameter:    []string{"old", "new"},
-			DefaultValue: []object.Object{nil, nil},
-			HaveVariadic: false,
-			Fn:           StringReplace,
-		},
-		Instance: nil,
+	STRINGREPLACE = object.BuiltinFunction{
+		Name:         "replace",
+		Parameter:    []string{"old", "new"},
+		DefaultValue: []object.Object{nil, nil},
+		HaveVariadic: false,
+		Fn:           StringReplace,
 	}
 	// STRINGINDEXOF 表示 String 类的 indexOf 方法
-	STRINGINDEXOF = object.Method{
-		Name: "indexOf",
-		Function: &object.BuiltinFunction{
-			Name:         "indexOf",
-			Parameter:    []string{"sub"},
-			DefaultValue: []object.Object{nil},
-			HaveVariadic: false,
-			Fn:           StringIndexOf,
-		},
-		Instance: nil,
+	STRINGINDEXOF = object.BuiltinFunction{
+		Name:         "indexOf",
+		Parameter:    []string{"sub"},
+		DefaultValue: []object.Object{nil},
+		HaveVariadic: false,
+		Fn:           StringIndexOf,
 	}
 )
 

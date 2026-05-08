@@ -163,7 +163,6 @@ type EllipsisStatement struct {
 // 返回值:
 //
 //	省略号语句的字符串表示
-
 func (es *EllipsisStatement) String() string {
 	return "..."
 }
@@ -357,3 +356,66 @@ func (cs *ClassStatement) String() string {
 // Statement 是标记方法，用于类型判断
 // 实现Statement接口
 func (cs *ClassStatement) Statement() {}
+
+// TryStatement 是try语句节点
+// 用于处理异常处理
+type TryStatement struct {
+	Body     Statement  // try语句体
+	CatchVar Expression // catch变量名
+	Catch    Statement  // catch语句体
+	Finally  Statement  // finally语句体
+	PosStart *util.Pos  // 语句的起始位置
+	PosEnd   *util.Pos  // 语句的结束位置
+}
+
+// String 返回try语句的字符串表示
+// 格式为：try <body> catch <catch-var> <catch> finally <finally>
+//
+// 返回值:
+//
+//	try语句的字符串表示
+func (ts *TryStatement) String() string {
+	var sb strings.Builder
+	sb.WriteString("try ")
+	sb.WriteString(ts.Body.String())
+	if ts.Catch != nil {
+		sb.WriteString(" catch ")
+		sb.WriteString(ts.CatchVar.String())
+		sb.WriteString(" ")
+		sb.WriteString(ts.Catch.String())
+	}
+	if ts.Finally != nil {
+		sb.WriteString(" finally ")
+		sb.WriteString(ts.Finally.String())
+	}
+	return sb.String()
+}
+
+// Statement 是标记方法，用于类型判断
+// 实现Statement接口
+func (ts *TryStatement) Statement() {}
+
+// ThrowStatement 是throw语句节点
+// 用于抛出异常
+type ThrowStatement struct {
+	Expr     Expression // 抛出的异常式
+	PosStart *util.Pos  // 语句的起始位置
+	PosEnd   *util.Pos  // 语句的结束位置
+}
+
+// String 返回throw语句的字符串表示
+// 格式为：throw <expr>
+//
+// 返回值:
+//
+//	throw语句的字符串表示
+func (ts *ThrowStatement) String() string {
+	var sb strings.Builder
+	sb.WriteString("throw ")
+	sb.WriteString(ts.Expr.String())
+	return sb.String()
+}
+
+// Statement 是标记方法，用于类型判断
+// 实现Statement接口
+func (ts *ThrowStatement) Statement() {}

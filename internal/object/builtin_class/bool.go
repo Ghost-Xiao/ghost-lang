@@ -36,16 +36,12 @@ func initBoolClass() *object.Class {
 
 var (
 	// BOOLINIT 表示 Bool 类的 init 方法
-	BOOLINIT = object.Method{
-		Name: "init",
-		Function: &object.BuiltinFunction{
-			Name:         "init",
-			Parameter:    []string{"value"},
-			DefaultValue: []object.Object{&object.Bool{Value: false}},
-			HaveVariadic: false,
-			Fn:           BoolInit,
-		},
-		Instance: nil,
+	BOOLINIT = object.BuiltinFunction{
+		Name:         "init",
+		Parameter:    []string{"value"},
+		DefaultValue: []object.Object{&object.Bool{Value: false}},
+		HaveVariadic: false,
+		Fn:           BoolInit,
 	}
 )
 

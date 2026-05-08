@@ -276,6 +276,12 @@ func (p *Parser) parseStatement(posStart *util.Pos) ast.Statement {
 	case lexer.CLASS:
 		// 解析为class语句
 		return p.parseClassStatement(posStart)
+	case lexer.TRY:
+		// 解析为try语句
+		return p.parseTryStatement(posStart)
+	case lexer.THROW:
+		// 解析为throw语句
+		return p.parseThrowStatement(posStart)
 	default:
 		// 解析为表达式语句
 		return p.parseExpressionStatement(posStart)
@@ -791,6 +797,91 @@ func (p *Parser) parseClassStatement(posStart *util.Pos) *ast.ClassStatement {
 	return ct
 }
 
+// parseTryStatement 解析try语句
+//
+// 参数:
+//
+//	posStart - 语句的起始位置
+//
+// 返回值:
+//
+//	包含表达式的TryStatement节点
+func (p *Parser) parseTryStatement(posStart *util.Pos) *ast.TryStatement {
+	ts := &ast.TryStatement{
+		CatchVar: nil,
+		Catch:    nil,
+		Finally:  nil,
+		PosStart: posStart,
+	}
+	p.Advance()
+	// 解析try体
+	ts.Body = p.parseStatement(p.CurrToken.PosStart.Copy())
+	if p.Err != nil {
+		return nil
+	}
+	// 解析catch语句
+	if p.NextToken.Type == lexer.CATCH {
+		p.Advance()
+		// 解析catch变量名
+		p.CheckNextAndAdvance(lexer.IDENT)
+		if p.Err != nil {
+			return nil
+		}
+		ts.CatchVar = p.parseIdentifierExpression(p.CurrToken.PosStart.Copy())
+		if p.Err != nil {
+			return nil
+		}
+		p.Advance()
+		ts.Catch = p.parseStatement(p.CurrToken.PosStart.Copy())
+		if p.Err != nil {
+			return nil
+		}
+	}
+	// 解析finally语句
+	if p.NextToken.Type == lexer.FINALLY {
+		p.Advance()
+		p.Advance()
+		ts.Finally = p.parseStatement(p.CurrToken.PosStart.Copy())
+		if p.Err != nil {
+			return nil
+		}
+	}
+	// 检查是否有catch语句或finally语句
+	if ts.Catch == nil && ts.Finally == nil {
+		p.Err = &errors.SyntaxError{
+			Message:  "try statement must have catch or finally clause.",
+			PosStart: p.CurrToken.PosStart.Copy(),
+			PosEnd:   p.CurrToken.PosEnd.Copy(),
+		}
+		return nil
+	}
+	ts.PosEnd = p.CurrToken.PosEnd.Copy()
+	return ts
+}
+
+// parseThrowStatement 解析throw语句
+//
+// 参数:
+//
+//	posStart - 语句的起始位置
+//
+// 返回值:
+//
+//	包含表达式的ThrowStatement节点
+func (p *Parser) parseThrowStatement(posStart *util.Pos) *ast.ThrowStatement {
+	p.Advance()
+	// 解析异常表达式
+	expr := p.ParseExpression(LOWEST)
+	if p.Err != nil {
+		return nil
+	}
+	return &ast.ThrowStatement{
+		Expr:     expr,
+		PosStart: posStart,
+		PosEnd:   p.CurrToken.PosEnd.Copy(),
+	}
+}
+
 // parseExpressionStatement 解析表达式语句(由单个表达式组成的语句)
 //
 // 参数:
@@ -1089,6 +1180,16 @@ func (p *Parser) parseVarAssignmentExpression(left ast.Expression, posStart *uti
 	}
 }
 
+// parseCompoundAssignmentExpression 解析复合赋值表达式
+//
+// 参数:
+//
+//	left - 左侧表达式节点
+//	posStart - 表达式的起始位置
+//
+// 返回值:
+//
+//	复合赋值表达式节点CompoundAssignment
 func (p *Parser) parseCompoundAssignmentExpression(left ast.Expression, posStart *util.Pos) ast.Expression {
 	// 检查左侧表达式是否为左值
 	if !left.IsLvalue() {
@@ -1151,6 +1252,16 @@ func (p *Parser) parsePrefixUnaryIncDecExpression(posStart *util.Pos) ast.Expres
 	}
 }
 
+// parsePostfixUnaryIncDecExpression 解析后缀自增 / 自减表达式
+//
+// 参数:
+//
+//	left - 左侧表达式节点
+//	posStart - 表达式的起始位置
+//
+// 返回值:
+//
+//	后缀自增 / 自减表达式节点PostfixUnaryIncDecExpression
 func (p *Parser) parsePostfixUnaryIncDecExpression(left ast.Expression, posStart *util.Pos) ast.Expression {
 	// 记录运算符
 	operator := p.CurrToken.Copy()

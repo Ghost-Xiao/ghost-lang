@@ -10,8 +10,14 @@ import (
 	"github.com/Ghost-Xiao/ghost-lang/internal/util"
 )
 
+// MathModule 表示 math 内置模块
 var MathModule = initMathModule()
 
+// initMathModule 初始化 math 模块
+//
+// 返回值:
+//
+//	*object.Module - 初始化后的 math 模块
 func initMathModule() *object.Module {
 	env := &object.Environment{
 		Name:  "math",
@@ -46,7 +52,6 @@ func initMathModule() *object.Module {
 	env.Set("stdDev", &object.Symbol{Name: "stdDev", Value: &STDDEV, IsConst: true})
 	env.Set("rand", &object.Symbol{Name: "rand", Value: &RAND, IsConst: true})
 	env.Set("randInt", &object.Symbol{Name: "randInt", Value: &RANDINT, IsConst: true})
-	env.Set("seed", &object.Symbol{Name: "seed", Value: &SEED, IsConst: true})
 
 	return &object.Module{
 		Name: "math",
@@ -55,9 +60,13 @@ func initMathModule() *object.Module {
 }
 
 var (
-	PI  = object.Float{Value: 3.141592653589793}
-	E   = object.Float{Value: 2.718281828459045}
+	// PI 圆周率常量
+	PI = object.Float{Value: 3.141592653589793}
+	// E 自然对数的底数
+	E = object.Float{Value: 2.718281828459045}
+	// TAU 2倍圆周率
 	TAU = object.Float{Value: 6.283185307179586}
+	// ABS 绝对值函数
 	ABS = object.BuiltinFunction{
 		Name:         "abs",
 		Parameter:    []string{"x"},
@@ -65,6 +74,7 @@ var (
 		HaveVariadic: false,
 		Fn:           MathAbs,
 	}
+	// SQRT 平方根函数
 	SQRT = object.BuiltinFunction{
 		Name:         "sqrt",
 		Parameter:    []string{"x"},
@@ -72,6 +82,7 @@ var (
 		HaveVariadic: false,
 		Fn:           MathSqrt,
 	}
+	// SIN 正弦函数
 	SIN = object.BuiltinFunction{
 		Name:         "sin",
 		Parameter:    []string{"x"},
@@ -79,6 +90,7 @@ var (
 		HaveVariadic: false,
 		Fn:           MathSin,
 	}
+	// COS 余弦函数
 	COS = object.BuiltinFunction{
 		Name:         "cos",
 		Parameter:    []string{"x"},
@@ -86,6 +98,7 @@ var (
 		HaveVariadic: false,
 		Fn:           MathCos,
 	}
+	// TAN 正切函数
 	TAN = object.BuiltinFunction{
 		Name:         "tan",
 		Parameter:    []string{"x"},
@@ -93,6 +106,7 @@ var (
 		HaveVariadic: false,
 		Fn:           MathTan,
 	}
+	// ASIN 反正弦函数
 	ASIN = object.BuiltinFunction{
 		Name:         "asin",
 		Parameter:    []string{"x"},
@@ -100,6 +114,7 @@ var (
 		HaveVariadic: false,
 		Fn:           MathAsin,
 	}
+	// ACOS 反余弦函数
 	ACOS = object.BuiltinFunction{
 		Name:         "acos",
 		Parameter:    []string{"x"},
@@ -107,6 +122,7 @@ var (
 		HaveVariadic: false,
 		Fn:           MathAcos,
 	}
+	// ATAN 反正切函数
 	ATAN = object.BuiltinFunction{
 		Name:         "atan",
 		Parameter:    []string{"x"},
@@ -114,6 +130,7 @@ var (
 		HaveVariadic: false,
 		Fn:           MathAtan,
 	}
+	// LOG 对数函数
 	LOG = object.BuiltinFunction{
 		Name:         "log",
 		Parameter:    []string{"a", "x"},
@@ -121,6 +138,7 @@ var (
 		HaveVariadic: false,
 		Fn:           MathLog,
 	}
+	// LG 常用对数函数（以10为底）
 	LG = object.BuiltinFunction{
 		Name:         "lg",
 		Parameter:    []string{"x"},
@@ -128,6 +146,7 @@ var (
 		HaveVariadic: false,
 		Fn:           MathLg,
 	}
+	// LN 自然对数函数（以e为底）
 	LN = object.BuiltinFunction{
 		Name:         "ln",
 		Parameter:    []string{"x"},
@@ -135,6 +154,7 @@ var (
 		HaveVariadic: false,
 		Fn:           MathLn,
 	}
+	// FLOOR 向下取整函数
 	FLOOR = object.BuiltinFunction{
 		Name:         "floor",
 		Parameter:    []string{"x", "decimalPlaces"},
@@ -142,6 +162,7 @@ var (
 		HaveVariadic: false,
 		Fn:           MathFloor,
 	}
+	// CEIL 向上取整函数
 	CEIL = object.BuiltinFunction{
 		Name:         "ceil",
 		Parameter:    []string{"x", "decimalPlaces"},
@@ -149,6 +170,7 @@ var (
 		HaveVariadic: false,
 		Fn:           MathCeil,
 	}
+	// ROUND 四舍五入函数
 	ROUND = object.BuiltinFunction{
 		Name:         "round",
 		Parameter:    []string{"x", "decimalPlaces"},
@@ -156,6 +178,7 @@ var (
 		HaveVariadic: false,
 		Fn:           MathRound,
 	}
+	// MIN 最小值函数
 	MIN = object.BuiltinFunction{
 		Name:         "min",
 		Parameter:    []string{"a"},
@@ -163,6 +186,7 @@ var (
 		HaveVariadic: true,
 		Fn:           MathMin,
 	}
+	// MAX 最大值函数
 	MAX = object.BuiltinFunction{
 		Name:         "max",
 		Parameter:    []string{"a"},
@@ -170,6 +194,7 @@ var (
 		HaveVariadic: true,
 		Fn:           MathMax,
 	}
+	// SUM 求和函数
 	SUM = object.BuiltinFunction{
 		Name:         "sum",
 		Parameter:    []string{"a"},
@@ -177,6 +202,7 @@ var (
 		HaveVariadic: true,
 		Fn:           MathSum,
 	}
+	// PRODUCT 乘积函数
 	PRODUCT = object.BuiltinFunction{
 		Name:         "product",
 		Parameter:    []string{"a"},
@@ -184,6 +210,7 @@ var (
 		HaveVariadic: true,
 		Fn:           MathProduct,
 	}
+	// MEAN 平均值函数
 	MEAN = object.BuiltinFunction{
 		Name:         "mean",
 		Parameter:    []string{"a"},
@@ -191,6 +218,7 @@ var (
 		HaveVariadic: true,
 		Fn:           MathMean,
 	}
+	// MEDIAN 中位数函数
 	MEDIAN = object.BuiltinFunction{
 		Name:         "median",
 		Parameter:    []string{"a"},
@@ -198,6 +226,7 @@ var (
 		HaveVariadic: true,
 		Fn:           MathMedian,
 	}
+	// VARIANCE 方差函数
 	VARIANCE = object.BuiltinFunction{
 		Name:         "variance",
 		Parameter:    []string{"a"},
@@ -205,6 +234,7 @@ var (
 		HaveVariadic: true,
 		Fn:           MathVariance,
 	}
+	// STDDEV 标准差函数
 	STDDEV = object.BuiltinFunction{
 		Name:         "stdDev",
 		Parameter:    []string{"a"},
@@ -212,6 +242,7 @@ var (
 		HaveVariadic: true,
 		Fn:           MathStdDev,
 	}
+	// RAND 随机数生成函数（0-1之间）
 	RAND = object.BuiltinFunction{
 		Name:         "rand",
 		Parameter:    []string{},
@@ -219,6 +250,7 @@ var (
 		HaveVariadic: false,
 		Fn:           MathRand,
 	}
+	// RANDINT 随机整数生成函数
 	RANDINT = object.BuiltinFunction{
 		Name:         "randInt",
 		Parameter:    []string{"min", "max"},
@@ -226,15 +258,22 @@ var (
 		HaveVariadic: false,
 		Fn:           MathRandInt,
 	}
-	SEED = object.BuiltinFunction{
-		Name:         "seed",
-		Parameter:    []string{"s"},
-		DefaultValue: []object.Object{nil},
-		HaveVariadic: false,
-		Fn:           MathSeed,
-	}
 )
 
+// MathAbs 实现绝对值函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 绝对值结果
+//	error - 可能出现的错误
 func MathAbs(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	x := args[0]
 	switch num := x.(type) {
@@ -257,6 +296,20 @@ func MathAbs(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos
 	}
 }
 
+// MathSqrt 实现平方根函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 平方根结果
+//	error - 可能出现的错误
 func MathSqrt(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	x := args[0]
 	switch num := x.(type) {
@@ -289,6 +342,20 @@ func MathSqrt(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Po
 	}
 }
 
+// MathSin 实现正弦函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 正弦结果
+//	error - 可能出现的错误
 func MathSin(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	x := args[0]
 	switch num := x.(type) {
@@ -305,6 +372,20 @@ func MathSin(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos
 	}
 }
 
+// MathCos 实现余弦函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 余弦结果
+//	error - 可能出现的错误
 func MathCos(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	x := args[0]
 	switch num := x.(type) {
@@ -321,6 +402,20 @@ func MathCos(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos
 	}
 }
 
+// MathTan 实现正切函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 正切结果
+//	error - 可能出现的错误
 func MathTan(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	x := args[0]
 	switch num := x.(type) {
@@ -337,6 +432,20 @@ func MathTan(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos
 	}
 }
 
+// MathAsin 实现反正弦函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 反正弦结果
+//	error - 可能出现的错误
 func MathAsin(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	x := args[0]
 	switch num := x.(type) {
@@ -353,6 +462,20 @@ func MathAsin(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Po
 	}
 }
 
+// MathAcos 实现反余弦函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 反余弦结果
+//	error - 可能出现的错误
 func MathAcos(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	x := args[0]
 	switch num := x.(type) {
@@ -369,6 +492,20 @@ func MathAcos(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Po
 	}
 }
 
+// MathAtan 实现反正切函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 反正切结果
+//	error - 可能出现的错误
 func MathAtan(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	x := args[0]
 	switch num := x.(type) {
@@ -385,6 +522,20 @@ func MathAtan(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Po
 	}
 }
 
+// MathLog 实现对数函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 对数结果
+//	error - 可能出现的错误
 func MathLog(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	a := args[0]
 	x := args[1]
@@ -434,6 +585,20 @@ func MathLog(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos
 	return &object.Float{Value: math.Log(num) / math.Log(base)}, nil
 }
 
+// MathLg 实现常用对数函数(以10为底)
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 常用对数结果
+//	error - 可能出现的错误
 func MathLg(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	x := args[0]
 	switch num := x.(type) {
@@ -466,6 +631,20 @@ func MathLg(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos,
 	}
 }
 
+// MathLn 实现自然对数函数(以e为底)
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 自然对数结果
+//	error - 可能出现的错误
 func MathLn(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	x := args[0]
 	switch num := x.(type) {
@@ -498,6 +677,20 @@ func MathLn(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos,
 	}
 }
 
+// MathFloor 实现向下取整函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 向下取整结果
+//	error - 可能出现的错误
 func MathFloor(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	x := args[0]
 	var decimalPlaces int64 = 0
@@ -541,6 +734,20 @@ func MathFloor(f *frame.Frame, env *object.Environment, posStart, posEnd *util.P
 	return &object.Float{Value: result}, nil
 }
 
+// MathCeil 实现向上取整函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 向上取整结果
+//	error - 可能出现的错误
 func MathCeil(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	x := args[0]
 	var decimalPlaces int64 = 0
@@ -584,6 +791,20 @@ func MathCeil(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Po
 	return &object.Float{Value: result}, nil
 }
 
+// MathRound 实现四舍五入函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 四舍五入结果
+//	error - 可能出现的错误
 func MathRound(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	x := args[0]
 	var decimalPlaces int64 = 0
@@ -627,6 +848,20 @@ func MathRound(f *frame.Frame, env *object.Environment, posStart, posEnd *util.P
 	return &object.Float{Value: result}, nil
 }
 
+// MathMin 实现最小值函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 最小值结果
+//	error - 可能出现的错误
 func MathMin(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	if len(args[0].(*object.List).Elements) == 0 {
 		return nil, &errors.TypeError{
@@ -669,6 +904,20 @@ func MathMin(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos
 	return &object.Float{Value: minVal}, nil
 }
 
+// MathMax 实现最大值函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 最大值结果
+//	error - 可能出现的错误
 func MathMax(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	if len(args[0].(*object.List).Elements) == 0 {
 		return nil, &errors.TypeError{
@@ -711,6 +960,20 @@ func MathMax(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos
 	return &object.Float{Value: maxVal}, nil
 }
 
+// MathSum 实现求和函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 求和结果
+//	error - 可能出现的错误
 func MathSum(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	if len(args[0].(*object.List).Elements) == 0 {
 		return nil, &errors.TypeError{
@@ -751,6 +1014,20 @@ func MathSum(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos
 	return &object.Float{Value: sum}, nil
 }
 
+// MathProduct 实现乘积函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 乘积结果
+//	error - 可能出现的错误
 func MathProduct(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	if len(args[0].(*object.List).Elements) == 0 {
 		return nil, &errors.TypeError{
@@ -791,6 +1068,20 @@ func MathProduct(f *frame.Frame, env *object.Environment, posStart, posEnd *util
 	return &object.Float{Value: product}, nil
 }
 
+// MathMean 实现平均值函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 平均值结果
+//	error - 可能出现的错误
 func MathMean(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	if len(args[0].(*object.List).Elements) == 0 {
 		return nil, &errors.TypeError{
@@ -819,10 +1110,24 @@ func MathMean(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Po
 		}
 		sum += val
 	}
-
-	return &object.Float{Value: sum / float64(len(args))}, nil
+	
+	return &object.Float{Value: sum / float64(len(args[0].(*object.List).Elements))}, nil
 }
 
+// MathMedian 实现中位数函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 中位数结果
+//	error - 可能出现的错误
 func MathMedian(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	if len(args[0].(*object.List).Elements) == 0 {
 		return nil, &errors.TypeError{
@@ -867,6 +1172,20 @@ func MathMedian(f *frame.Frame, env *object.Environment, posStart, posEnd *util.
 	return &object.Float{Value: (vals[n/2-1] + vals[n/2]) / 2}, nil
 }
 
+// MathVariance 实现方差函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 方差结果
+//	error - 可能出现的错误
 func MathVariance(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	if len(args[0].(*object.List).Elements) == 0 {
 		return nil, &errors.TypeError{
@@ -908,6 +1227,20 @@ func MathVariance(f *frame.Frame, env *object.Environment, posStart, posEnd *uti
 	return &object.Float{Value: varianceSum / float64(len(vals))}, nil
 }
 
+// MathStdDev 实现标准差函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 标准差结果
+//	error - 可能出现的错误
 func MathStdDev(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	varianceObj, err := MathVariance(f, env, posStart, posEnd, args...)
 	if err != nil {
@@ -927,10 +1260,38 @@ func MathStdDev(f *frame.Frame, env *object.Environment, posStart, posEnd *util.
 	return &object.Float{Value: math.Sqrt(variance.Value)}, nil
 }
 
+// MathRand 实现随机数生成函数(0-1之间)
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 随机数结果
+//	error - 可能出现的错误
 func MathRand(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	return &object.Float{Value: rand.Float64()}, nil
 }
 
+// MathRandInt 实现随机整数生成函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 随机整数结果
+//	error - 可能出现的错误
 func MathRandInt(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	if len(args) != 2 {
 		return nil, &errors.TypeError{
@@ -984,33 +1345,4 @@ func MathRandInt(f *frame.Frame, env *object.Environment, posStart, posEnd *util
 	}
 
 	return &object.Int{Value: minVal + rand.Int63n(maxVal-minVal+1)}, nil
-}
-
-func MathSeed(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
-	if len(args) != 1 {
-		return nil, &errors.TypeError{
-			Frame:    f,
-			Message:  "seed requires one argument.",
-			PosStart: posStart,
-			PosEnd:   posEnd,
-		}
-	}
-
-	var seedVal int64
-	switch seedArg := args[0].(type) {
-	case *object.Int:
-		seedVal = seedArg.Value
-	case *object.Float:
-		seedVal = int64(seedArg.Value)
-	default:
-		return nil, &errors.TypeError{
-			Frame:    f,
-			Message:  "seed must be a number.",
-			PosStart: posStart,
-			PosEnd:   posEnd,
-		}
-	}
-
-	rand.Seed(seedVal)
-	return &object.Null{}, nil
 }

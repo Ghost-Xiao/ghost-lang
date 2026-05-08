@@ -11,8 +11,14 @@ import (
 	"github.com/Nomango/datefmt"
 )
 
+// TimeModule 表示 time 内置模块
 var TimeModule = initTimeModule()
 
+// initTimeModule 初始化 time 模块
+//
+// 返回值:
+//
+//	*object.Module - 初始化后的 time 模块
 func initTimeModule() *object.Module {
 	env := &object.Environment{
 		Name:  "time",
@@ -24,12 +30,23 @@ func initTimeModule() *object.Module {
 	env.Set("Duration", &object.Symbol{Name: "Duration", Value: DurationClass, IsConst: true})
 	env.Set("sleep", &object.Symbol{Name: "sleep", Value: &TIME_SLEEP, IsConst: true})
 
+	// 时间常量（纳秒）
+	env.Set("NANOSECOND", &object.Symbol{Name: "NANOSECOND", Value: &object.Int{Value: 1}, IsConst: true})
+	env.Set("MICROSECOND", &object.Symbol{Name: "MICROSECOND", Value: &object.Int{Value: 1000}, IsConst: true})
+	env.Set("MILLISECOND", &object.Symbol{Name: "MILLISECOND", Value: &object.Int{Value: 1000000}, IsConst: true})
+	env.Set("SECOND", &object.Symbol{Name: "SECOND", Value: &object.Int{Value: 1000000000}, IsConst: true})
+	env.Set("MINUTE", &object.Symbol{Name: "MINUTE", Value: &object.Int{Value: 60000000000}, IsConst: true})
+	env.Set("HOUR", &object.Symbol{Name: "HOUR", Value: &object.Int{Value: 3600000000000}, IsConst: true})
+	env.Set("DAY", &object.Symbol{Name: "DAY", Value: &object.Int{Value: 86400000000000}, IsConst: true})
+
 	return &object.Module{
 		Name: "time",
 		Env:  env,
 	}
 }
 
+// TIME_SLEEP 表示 time.sleep 函数
+// 暂停当前执行指定的持续时间
 var TIME_SLEEP = object.BuiltinFunction{
 	Name:         "sleep",
 	Parameter:    []string{"duration"},
@@ -68,6 +85,10 @@ var TIME_SLEEP = object.BuiltinFunction{
 var TimeClass = initTimeClass()
 
 // initTimeClass 初始化 Time 类
+//
+// 返回值:
+//
+//	*object.Class - 初始化后的 Time 类
 func initTimeClass() *object.Class {
 	member := &object.Environment{
 		Name:  "Time",
@@ -221,7 +242,7 @@ var (
 	TIME_FORMAT = object.BuiltinFunction{
 		Name:         "format",
 		Parameter:    []string{"layout"},
-		DefaultValue: []object.Object{&object.String{Value: "2006-01-02 15:04:05"}},
+		DefaultValue: []object.Object{&object.String{Value: "yyyy-MM-dd HH:mm:ss"}},
 		HaveVariadic: false,
 		Fn:           TimeFormat,
 	}
@@ -291,6 +312,20 @@ var (
 	}
 )
 
+// TimeInit 实现 Time 类的 init 构造函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 构造函数参数，第一个为实例，第二个为可变参数列表
+//
+// 返回值:
+//
+//	object.Object - 构造函数返回值
+//	error - 可能出现的错误
 func TimeInit(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if this == nil || !ok {
@@ -420,6 +455,19 @@ func TimeInit(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Po
 	}
 }
 
+// getTimeStampNs 获取时间戳的纳秒值
+//
+// 参数:
+//
+//	this - 时间实例
+//	f - 当前调用栈
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//
+// 返回值:
+//
+//	*object.Int - 时间戳的纳秒值
+//	error - 可能出现的错误
 func getTimeStampNs(this *object.Instance, f *frame.Frame, posStart, posEnd *util.Pos) (*object.Int, error) {
 	timestampNs, ok := this.Member.Get("timestampNs")
 	if !ok {
@@ -443,6 +491,19 @@ func getTimeStampNs(this *object.Instance, f *frame.Frame, posStart, posEnd *uti
 	}
 }
 
+// getZoneOffset 获取时区偏移值
+//
+// 参数:
+//
+//	this - 时间实例
+//	f - 当前调用栈
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//
+// 返回值:
+//
+//	*object.Int - 时区偏移值
+//	error - 可能出现的错误
 func getZoneOffset(this *object.Instance, f *frame.Frame, posStart, posEnd *util.Pos) (*object.Int, error) {
 	zoneOffset, ok := this.Member.Get("zoneOffset")
 	if !ok {
@@ -466,6 +527,20 @@ func getZoneOffset(this *object.Instance, f *frame.Frame, posStart, posEnd *util
 	}
 }
 
+// TimeTimestamp 实现 timestamp 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 时间戳（纳秒）
+//	error - 可能出现的错误
 func TimeTimestamp(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -483,6 +558,20 @@ func TimeTimestamp(f *frame.Frame, env *object.Environment, posStart, posEnd *ut
 	return &object.Int{Value: timestampNs.Value}, nil
 }
 
+// TimeSetZone 实现 setZone 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 时区偏移
+//	error - 可能出现的错误
 func TimeSetZone(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -511,6 +600,20 @@ func TimeSetZone(f *frame.Frame, env *object.Environment, posStart, posEnd *util
 	}
 }
 
+// TimeNanoSecond 实现 nanosecond 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 纳秒部分
+//	error - 可能出现的错误
 func TimeNanoSecond(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -528,6 +631,20 @@ func TimeNanoSecond(f *frame.Frame, env *object.Environment, posStart, posEnd *u
 	return &object.Int{Value: timestampNs.Value % 1000000000}, nil
 }
 
+// TimeMicroSecond 实现 microsecond 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 微秒部分
+//	error - 可能出现的错误
 func TimeMicroSecond(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -545,6 +662,20 @@ func TimeMicroSecond(f *frame.Frame, env *object.Environment, posStart, posEnd *
 	return &object.Int{Value: timestampNs.Value / 1000}, nil
 }
 
+// TimeMillisecond 实现 millisecond 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 毫秒部分
+//	error - 可能出现的错误
 func TimeMillisecond(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -562,6 +693,20 @@ func TimeMillisecond(f *frame.Frame, env *object.Environment, posStart, posEnd *
 	return &object.Int{Value: timestampNs.Value / 1000000}, nil
 }
 
+// TimeYear 实现 year 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 年份
+//	error - 可能出现的错误
 func TimeYear(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -587,6 +732,20 @@ func TimeYear(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Po
 	return &object.Int{Value: int64(t.Year())}, nil
 }
 
+// TimeMonth 实现 month 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 月份
+//	error - 可能出现的错误
 func TimeMonth(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -612,6 +771,20 @@ func TimeMonth(f *frame.Frame, env *object.Environment, posStart, posEnd *util.P
 	return &object.Int{Value: int64(t.Month())}, nil
 }
 
+// TimeDay 实现 day 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 日期
+//	error - 可能出现的错误
 func TimeDay(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -637,6 +810,20 @@ func TimeDay(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos
 	return &object.Int{Value: int64(t.Day())}, nil
 }
 
+// TimeHour 实现 hour 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 小时
+//	error - 可能出现的错误
 func TimeHour(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -662,6 +849,20 @@ func TimeHour(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Po
 	return &object.Int{Value: int64(t.Hour())}, nil
 }
 
+// TimeMinute 实现 minute 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 分钟
+//	error - 可能出现的错误
 func TimeMinute(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -687,6 +888,20 @@ func TimeMinute(f *frame.Frame, env *object.Environment, posStart, posEnd *util.
 	return &object.Int{Value: int64(t.Minute())}, nil
 }
 
+// TimeSecond 实现 second 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 秒
+//	error - 可能出现的错误
 func TimeSecond(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -712,6 +927,20 @@ func TimeSecond(f *frame.Frame, env *object.Environment, posStart, posEnd *util.
 	return &object.Int{Value: int64(t.Second())}, nil
 }
 
+// TimeWeekday 实现 weekday 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 星期几
+//	error - 可能出现的错误
 func TimeWeekday(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -737,6 +966,20 @@ func TimeWeekday(f *frame.Frame, env *object.Environment, posStart, posEnd *util
 	return &object.Int{Value: int64(t.Weekday())}, nil
 }
 
+// TimeYearday 实现 yearday 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 一年中的第几天
+//	error - 可能出现的错误
 func TimeYearday(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -762,6 +1005,20 @@ func TimeYearday(f *frame.Frame, env *object.Environment, posStart, posEnd *util
 	return &object.Int{Value: int64(t.YearDay())}, nil
 }
 
+// TimeFormat 实现 format 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 格式化后的时间字符串
+//	error - 可能出现的错误
 func TimeFormat(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -798,6 +1055,18 @@ func TimeFormat(f *frame.Frame, env *object.Environment, posStart, posEnd *util.
 	return &object.String{Value: t.Format(layout)}, nil
 }
 
+// NewTimeInstance 创建一个新的 Time 实例
+//
+// 参数:
+//
+//	timeClass - Time 类
+//	timestampNs - 时间戳（纳秒）
+//	zoneOffset - 时区偏移
+//	env - 执行环境
+//
+// 返回值:
+//
+//	*object.Instance - 新的 Time 实例
 func NewTimeInstance(timeClass *object.Class, timestampNs int64, zoneOffset int64, env *object.Environment) *object.Instance {
 	instance := &object.Instance{
 		Class: timeClass,
@@ -850,6 +1119,20 @@ func NewTimeInstance(timeClass *object.Class, timestampNs int64, zoneOffset int6
 	return instance
 }
 
+// TimeAdd 实现 __add__ 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 新的 Time 实例
+//	error - 可能出现的错误
 func TimeAdd(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -895,6 +1178,20 @@ func TimeAdd(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos
 	}
 }
 
+// TimeSub 实现 __sub__ 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 新的 Time 或 Duration 实例
+//	error - 可能出现的错误
 func TimeSub(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -948,6 +1245,20 @@ func TimeSub(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos
 	}
 }
 
+// TimeEq 实现 __eq__ 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 比较结果
+//	error - 可能出现的错误
 func TimeEq(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -988,6 +1299,20 @@ func TimeEq(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos,
 	}
 }
 
+// TimeNe 实现 __ne__ 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 比较结果
+//	error - 可能出现的错误
 func TimeNe(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1028,6 +1353,20 @@ func TimeNe(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos,
 	}
 }
 
+// TimeLt 实现 __lt__ 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 比较结果
+//	error - 可能出现的错误
 func TimeLt(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1068,6 +1407,20 @@ func TimeLt(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos,
 	}
 }
 
+// TimeLe 实现 __le__ 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 比较结果
+//	error - 可能出现的错误
 func TimeLe(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1108,6 +1461,20 @@ func TimeLe(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos,
 	}
 }
 
+// TimeGt 实现 __gt__ 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 比较结果
+//	error - 可能出现的错误
 func TimeGt(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1148,6 +1515,20 @@ func TimeGt(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos,
 	}
 }
 
+// TimeGe 实现 __ge__ 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 比较结果
+//	error - 可能出现的错误
 func TimeGe(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1192,6 +1573,10 @@ func TimeGe(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos,
 var DurationClass = initDurationClass()
 
 // initDurationClass 初始化 Duration 类
+//
+// 返回值:
+//
+//	*object.Class - 初始化后的 Duration 类
 func initDurationClass() *object.Class {
 	member := &object.Environment{
 		Name:  "Duration",
@@ -1381,6 +1766,20 @@ var (
 	}
 )
 
+// DurationInit 实现 Duration 类的 init 构造函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 构造函数参数
+//
+// 返回值:
+//
+//	object.Object - 构造函数返回值
+//	error - 可能出现的错误
 func DurationInit(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1406,6 +1805,19 @@ func DurationInit(f *frame.Frame, env *object.Environment, posStart, posEnd *uti
 	}
 }
 
+// getNs 获取 Duration 实例的纳秒值
+//
+// 参数:
+//
+//	this - Duration 实例
+//	f - 当前调用栈
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//
+// 返回值:
+//
+//	*object.Int - 纳秒值
+//	error - 可能出现的错误
 func getNs(this *object.Instance, f *frame.Frame, posStart, posEnd *util.Pos) (*object.Int, error) {
 	nsSym, ok := this.Member.Get("ns")
 	if !ok {
@@ -1429,6 +1841,20 @@ func getNs(this *object.Instance, f *frame.Frame, posStart, posEnd *util.Pos) (*
 	}
 }
 
+// DurationNanosecond 实现 nanosecond 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 纳秒值
+//	error - 可能出现的错误
 func DurationNanosecond(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1446,6 +1872,20 @@ func DurationNanosecond(f *frame.Frame, env *object.Environment, posStart, posEn
 	return &object.Int{Value: ns.Value}, nil
 }
 
+// DurationMicrosecond 实现 microsecond 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 微秒值
+//	error - 可能出现的错误
 func DurationMicrosecond(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1463,6 +1903,20 @@ func DurationMicrosecond(f *frame.Frame, env *object.Environment, posStart, posE
 	return &object.Float{Value: float64(ns.Value) / 1000.0}, nil
 }
 
+// DurationMillisecond 实现 millisecond 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 毫秒值
+//	error - 可能出现的错误
 func DurationMillisecond(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1480,6 +1934,20 @@ func DurationMillisecond(f *frame.Frame, env *object.Environment, posStart, posE
 	return &object.Float{Value: float64(ns.Value) / 1000000.0}, nil
 }
 
+// DurationSecond 实现 second 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 秒值
+//	error - 可能出现的错误
 func DurationSecond(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1497,6 +1965,20 @@ func DurationSecond(f *frame.Frame, env *object.Environment, posStart, posEnd *u
 	return &object.Float{Value: float64(ns.Value) / 1000000000.0}, nil
 }
 
+// DurationMinute 实现 minute 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 分钟值
+//	error - 可能出现的错误
 func DurationMinute(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1514,6 +1996,20 @@ func DurationMinute(f *frame.Frame, env *object.Environment, posStart, posEnd *u
 	return &object.Float{Value: float64(ns.Value) / 60000000000.0}, nil
 }
 
+// DurationHour 实现 hour 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 小时值
+//	error - 可能出现的错误
 func DurationHour(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1531,6 +2027,20 @@ func DurationHour(f *frame.Frame, env *object.Environment, posStart, posEnd *uti
 	return &object.Float{Value: float64(ns.Value) / 3600000000000.0}, nil
 }
 
+// DurationDay 实现 day 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 天数值
+//	error - 可能出现的错误
 func DurationDay(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1548,6 +2058,17 @@ func DurationDay(f *frame.Frame, env *object.Environment, posStart, posEnd *util
 	return &object.Float{Value: float64(ns.Value) / 86400000000000.0}, nil
 }
 
+// NewDurationInstance 创建一个新的 Duration 实例
+//
+// 参数:
+//
+//	durationClass - Duration 类
+//	ns - 纳秒值
+//	env - 执行环境
+//
+// 返回值:
+//
+//	*object.Instance - 新的 Duration 实例
 func NewDurationInstance(durationClass *object.Class, ns int64, env *object.Environment) *object.Instance {
 	instance := &object.Instance{
 		Class: durationClass,
@@ -1593,6 +2114,20 @@ func NewDurationInstance(durationClass *object.Class, ns int64, env *object.Envi
 	return instance
 }
 
+// DurationAdd 实现 __add__ 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 新的 Duration 实例
+//	error - 可能出现的错误
 func DurationAdd(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1634,6 +2169,20 @@ func DurationAdd(f *frame.Frame, env *object.Environment, posStart, posEnd *util
 	}
 }
 
+// DurationSub 实现 __sub__ 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 新的 Duration 实例
+//	error - 可能出现的错误
 func DurationSub(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1675,6 +2224,20 @@ func DurationSub(f *frame.Frame, env *object.Environment, posStart, posEnd *util
 	}
 }
 
+// DurationMul 实现 __mul__ 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 新的 Duration 实例
+//	error - 可能出现的错误
 func DurationMul(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1703,6 +2266,20 @@ func DurationMul(f *frame.Frame, env *object.Environment, posStart, posEnd *util
 	}
 }
 
+// DurationDiv 实现 __div__ 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 新的 Duration 实例或 Float
+//	error - 可能出现的错误
 func DurationDiv(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1762,6 +2339,20 @@ func DurationDiv(f *frame.Frame, env *object.Environment, posStart, posEnd *util
 	}
 }
 
+// DurationEq 实现 __eq__ 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 比较结果
+//	error - 可能出现的错误
 func DurationEq(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1802,6 +2393,20 @@ func DurationEq(f *frame.Frame, env *object.Environment, posStart, posEnd *util.
 	}
 }
 
+// DurationNe 实现 __ne__ 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 比较结果
+//	error - 可能出现的错误
 func DurationNe(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1842,6 +2447,20 @@ func DurationNe(f *frame.Frame, env *object.Environment, posStart, posEnd *util.
 	}
 }
 
+// DurationGt 实现 __gt__ 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 比较结果
+//	error - 可能出现的错误
 func DurationGt(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1882,6 +2501,20 @@ func DurationGt(f *frame.Frame, env *object.Environment, posStart, posEnd *util.
 	}
 }
 
+// DurationGe 实现 __ge__ 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 比较结果
+//	error - 可能出现的错误
 func DurationGe(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1922,6 +2555,20 @@ func DurationGe(f *frame.Frame, env *object.Environment, posStart, posEnd *util.
 	}
 }
 
+// DurationLe 实现 __le__ 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 比较结果
+//	error - 可能出现的错误
 func DurationLe(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -1962,6 +2609,20 @@ func DurationLe(f *frame.Frame, env *object.Environment, posStart, posEnd *util.
 	}
 }
 
+// DurationLt 实现 __lt__ 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 比较结果
+//	error - 可能出现的错误
 func DurationLt(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {
@@ -2002,6 +2663,20 @@ func DurationLt(f *frame.Frame, env *object.Environment, posStart, posEnd *util.
 	}
 }
 
+// DurationNeg 实现 __neg__ 方法
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 方法参数
+//
+// 返回值:
+//
+//	object.Object - 新的 Duration 实例
+//	error - 可能出现的错误
 func DurationNeg(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	this, ok := args[0].(*object.Instance)
 	if !ok {

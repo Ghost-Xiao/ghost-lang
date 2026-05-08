@@ -37,40 +37,28 @@ func initIntClass() *object.Class {
 
 var (
 	// INTINIT 表示 Int 类的 init 方法
-	INTINIT = object.Method{
-		Name: "init",
-		Function: &object.BuiltinFunction{
-			Name:         "init",
-			Parameter:    []string{"value"},
-			DefaultValue: []object.Object{&object.Int{Value: 0}},
-			HaveVariadic: false,
-			Fn:           IntInit,
-		},
-		Instance: nil,
+	INTINIT = object.BuiltinFunction{
+		Name:         "init",
+		Parameter:    []string{"value"},
+		DefaultValue: []object.Object{&object.Int{Value: 0}},
+		HaveVariadic: false,
+		Fn:           IntInit,
 	}
 	// ISEVEN 表示 Int 类的 isEven 方法
-	ISEVEN = object.Method{
-		Name: "isEven",
-		Function: &object.BuiltinFunction{
-			Name:         "isEven",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           IntIsEven,
-		},
-		Instance: nil,
+	ISEVEN = object.BuiltinFunction{
+		Name:         "isEven",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           IntIsEven,
 	}
 	// ISODD 表示 Int 类的 isOdd 方法
-	ISODD = object.Method{
-		Name: "isOdd",
-		Function: &object.BuiltinFunction{
-			Name:         "isOdd",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           IntIsOdd,
-		},
-		Instance: nil,
+	ISODD = object.BuiltinFunction{
+		Name:         "isOdd",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           IntIsOdd,
 	}
 )
 

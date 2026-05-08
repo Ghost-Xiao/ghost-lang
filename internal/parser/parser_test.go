@@ -215,12 +215,10 @@ func TestParser_ParseForStatement(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ForStatement)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ForStatement)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -345,10 +343,10 @@ func TestParser_ParseFunctionDeclarationStatement(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.FunctionDeclarationStatement)
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
+			expr := program.Statements[0].(*ast.FunctionDeclarationStatement)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				println(expr.Parameter[0].Name.PosStart.String(), tt.expected.Parameter[0].Name.PosStart.String())
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
@@ -383,12 +381,10 @@ func TestParser_ParseReturnStatement(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ReturnStatement)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ReturnStatement)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -417,12 +413,10 @@ func TestParser_ParseEllipsisStatement(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.EllipsisStatement)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.EllipsisStatement)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -475,12 +469,10 @@ func TestParser_ParseNamespaceStatement(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.NamespaceStatement)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.NamespaceStatement)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -569,12 +561,10 @@ func TestParser_ParseForEachStatement(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ForEachStatement)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ForEachStatement)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -608,12 +598,10 @@ func TestParser_ParseImportStatement(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ImportStatement)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ImportStatement)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -661,12 +649,123 @@ func TestParser_ParseClassStatement(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ClassStatement)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
+			expr := program.Statements[0].(*ast.ClassStatement)
+			if !reflect.DeepEqual(expr, tt.expected) {
+				t.Errorf("expected %+v, got %+v", tt.expected, expr)
+			}
+		})
+	}
+}
 
+func TestParser_ParseTryStatement(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected *ast.TryStatement
+	}{
+		{
+			name:  "Try Statement",
+			input: "try {} catch e {} finally {};",
+			expected: &ast.TryStatement{
+				Body: &ast.ExpressionStatement{
+					Expr: &ast.BlockExpression{
+						Statements: []ast.Statement{},
+						PosStart:   util.NewPos(1, 5, 4, "<test>", "try {} catch e {} finally {};"),
+						PosEnd:     util.NewPos(1, 7, 6, "<test>", "try {} catch e {} finally {};"),
+					},
+					PosStart: util.NewPos(1, 5, 4, "<test>", "try {} catch e {} finally {};"),
+					PosEnd:   util.NewPos(1, 7, 6, "<test>", "try {} catch e {} finally {};"),
+				},
+				CatchVar: &ast.IdentifierExpression{
+					Name:     "e",
+					PosStart: util.NewPos(1, 14, 13, "<test>", "try {} catch e {} finally {};"),
+					PosEnd:   util.NewPos(1, 15, 14, "<test>", "try {} catch e {} finally {};"),
+				},
+				Catch: &ast.ExpressionStatement{
+					Expr: &ast.BlockExpression{
+						Statements: []ast.Statement{},
+						PosStart:   util.NewPos(1, 16, 15, "<test>", "try {} catch e {} finally {};"),
+						PosEnd:     util.NewPos(1, 18, 17, "<test>", "try {} catch e {} finally {};"),
+					},
+					PosStart: util.NewPos(1, 16, 15, "<test>", "try {} catch e {} finally {};"),
+					PosEnd:   util.NewPos(1, 18, 17, "<test>", "try {} catch e {} finally {};"),
+				},
+				Finally: &ast.ExpressionStatement{
+					Expr: &ast.BlockExpression{
+						Statements: []ast.Statement{},
+						PosStart:   util.NewPos(1, 27, 26, "<test>", "try {} catch e {} finally {};"),
+						PosEnd:     util.NewPos(1, 29, 28, "<test>", "try {} catch e {} finally {};"),
+					},
+					PosStart: util.NewPos(1, 27, 26, "<test>", "try {} catch e {} finally {};"),
+					PosEnd:   util.NewPos(1, 29, 28, "<test>", "try {} catch e {} finally {};"),
+				},
+				PosStart: util.NewPos(1, 1, 0, "<test>", "try {} catch e {} finally {};"),
+				PosEnd:   util.NewPos(1, 29, 28, "<test>", "try {} catch e {} finally {};"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.NewLexer("<test>", tt.input)
+			p, _ := NewParser(l)
+			program := p.ParseProgram()
+			if p.Err != nil {
+				t.Errorf("err = %+v, expected nil", p.Err)
+			}
+			expr := program.Statements[0].(*ast.TryStatement)
+			if !reflect.DeepEqual(expr, tt.expected) {
+				t.Errorf("expected %+v, got %+v", tt.expected, expr)
+			}
+		})
+	}
+}
+
+func TestParser_ParseThrowStatement(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected *ast.ThrowStatement
+	}{
+		{
+			name:  "Throw Statement",
+			input: "throw Error(`error`);",
+			expected: &ast.ThrowStatement{
+				Expr: &ast.CallExpression{
+					Function: &ast.IdentifierExpression{
+						Name:     "Error",
+						PosStart: util.NewPos(1, 7, 6, "<test>", "throw Error(`error`);"),
+						PosEnd:   util.NewPos(1, 12, 11, "<test>", "throw Error(`error`);"),
+					},
+					Argument: []ast.Expression{
+						&ast.StringExpression{
+							Value:    "error",
+							PosStart: util.NewPos(1, 13, 12, "<test>", "throw Error(`error`);"),
+							PosEnd:   util.NewPos(1, 20, 19, "<test>", "throw Error(`error`);"),
+						},
+					},
+					IsUnpack: []bool{false},
+					PosStart: util.NewPos(1, 7, 6, "<test>", "throw Error(`error`);"),
+					PosEnd:   util.NewPos(1, 21, 20, "<test>", "throw Error(`error`);"),
+				},
+				PosStart: util.NewPos(1, 1, 0, "<test>", "throw Error(`error`);"),
+				PosEnd:   util.NewPos(1, 21, 20, "<test>", "throw Error(`error`);"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.NewLexer("<test>", tt.input)
+			p, _ := NewParser(l)
+			program := p.ParseProgram()
+			if p.Err != nil {
+				t.Errorf("err = %+v, expected nil", p.Err)
+			}
+			expr := program.Statements[0].(*ast.ThrowStatement)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -744,12 +843,10 @@ func TestParser_ParsePrefixExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.PrefixExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.PrefixExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -1154,12 +1251,10 @@ func TestParser_ParseInfixExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.InfixExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.InfixExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -1225,11 +1320,10 @@ func TestParser_ParseIntegerExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.IntExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.IntExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -1277,12 +1371,10 @@ func TestParser_ParseFloatExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.FloatExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.FloatExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -1330,12 +1422,10 @@ func TestParser_ParseIdentifierExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.IdentifierExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.IdentifierExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -1374,12 +1464,10 @@ func TestParser_ParseBooleanExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.BoolExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.BoolExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -1408,12 +1496,10 @@ func TestParser_ParseNullExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.NullExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.NullExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -1461,12 +1547,10 @@ func TestParser_ParseStringExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.StringExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.StringExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -1566,12 +1650,10 @@ func TestParser_ParseGroupedExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -1671,12 +1753,10 @@ func TestParser_ParseVarInitializationExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.VarInitializationExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.VarInitializationExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -1745,12 +1825,10 @@ func TestParser_ParseCompoundAssignmentExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.CompoundAssignmentExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.CompoundAssignmentExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -1809,12 +1887,10 @@ func TestParser_ParsePrefixUnaryIncDecExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.PrefixUnaryIncDecExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.PrefixUnaryIncDecExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -1873,12 +1949,10 @@ func TestParser_ParsePostfixUnaryIncDecExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.PostfixUnaryIncDecExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.PostfixUnaryIncDecExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -1918,12 +1992,10 @@ func TestParser_ParseBlockExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.BlockExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.BlockExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -1998,12 +2070,10 @@ func TestParser_ParseIfExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.IfExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.IfExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -2066,12 +2136,10 @@ func TestParser_ParseCallExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.CallExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.CallExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -2236,12 +2304,10 @@ func TestParser_ParseListExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.ListExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.ListExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -2286,12 +2352,10 @@ func TestParser_ParseIndexExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.IndexExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.IndexExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -2330,12 +2394,10 @@ func TestParser_ParseNamespaceAccessExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.NamespaceAccessExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.NamespaceAccessExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -2374,12 +2436,10 @@ func TestParser_ParseRangeExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.RangeExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.RangeExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -2418,12 +2478,10 @@ func TestParser_ParseContainsExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.ContainsExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.ContainsExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -2462,12 +2520,10 @@ func TestParser_ParseMemberAccessExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.MemberAccessExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.MemberAccessExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -2522,12 +2578,10 @@ func TestParser_ParseMapExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.MapExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.MapExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -2556,12 +2610,10 @@ func TestParser_ParseThisExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.ThisExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.ThisExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}
@@ -2590,12 +2642,10 @@ func TestParser_ParseSuperExpression(t *testing.T) {
 			l := lexer.NewLexer("<test>", tt.input)
 			p, _ := NewParser(l)
 			program := p.ParseProgram()
-			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.SuperExpression)
-
 			if p.Err != nil {
 				t.Errorf("err = %+v, expected nil", p.Err)
 			}
-
+			expr := program.Statements[0].(*ast.ExpressionStatement).Expr.(*ast.SuperExpression)
 			if !reflect.DeepEqual(expr, tt.expected) {
 				t.Errorf("expected %+v, got %+v", tt.expected, expr)
 			}

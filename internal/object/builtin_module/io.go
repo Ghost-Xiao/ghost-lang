@@ -13,8 +13,14 @@ import (
 	"github.com/Ghost-Xiao/ghost-lang/internal/util"
 )
 
+// IOModule 表示 io 内置模块
 var IOModule = initIOModule()
 
+// initIOModule 初始化 io 模块
+//
+// 返回值:
+//
+//	*object.Module - 初始化后的 io 模块
 func initIOModule() *object.Module {
 	env := &object.Environment{
 		Name:  "io",
@@ -43,6 +49,7 @@ func initIOModule() *object.Module {
 }
 
 var (
+	// READ 读取文件内容函数
 	READ = object.BuiltinFunction{
 		Name:         "read",
 		Parameter:    []string{"path"},
@@ -50,6 +57,7 @@ var (
 		HaveVariadic: false,
 		Fn:           IORead,
 	}
+	// WRITE 写入文件内容函数
 	WRITE = object.BuiltinFunction{
 		Name:         "write",
 		Parameter:    []string{"path", "content"},
@@ -57,6 +65,7 @@ var (
 		HaveVariadic: false,
 		Fn:           IOWrite,
 	}
+	// APPEND 追加内容到文件函数
 	APPEND = object.BuiltinFunction{
 		Name:         "append",
 		Parameter:    []string{"path", "content"},
@@ -64,6 +73,7 @@ var (
 		HaveVariadic: false,
 		Fn:           IOAppend,
 	}
+	// READLINES 按行读取文件函数
 	READLINES = object.BuiltinFunction{
 		Name:         "readLines",
 		Parameter:    []string{"path"},
@@ -71,6 +81,7 @@ var (
 		HaveVariadic: false,
 		Fn:           IOReadLines,
 	}
+	// MKDIR 创建目录函数
 	MKDIR = object.BuiltinFunction{
 		Name:         "mkdir",
 		Parameter:    []string{"path"},
@@ -78,6 +89,7 @@ var (
 		HaveVariadic: false,
 		Fn:           IOMkdir,
 	}
+	// LISTDIR 列出目录内容函数
 	LISTDIR = object.BuiltinFunction{
 		Name:         "listDir",
 		Parameter:    []string{"path"},
@@ -85,6 +97,7 @@ var (
 		HaveVariadic: false,
 		Fn:           IOListDir,
 	}
+	// EXISTS 检查文件或目录是否存在函数
 	EXISTS = object.BuiltinFunction{
 		Name:         "exists",
 		Parameter:    []string{"path"},
@@ -92,6 +105,7 @@ var (
 		HaveVariadic: false,
 		Fn:           IOExists,
 	}
+	// ISFILE 检查是否为文件函数
 	ISFILE = object.BuiltinFunction{
 		Name:         "isFile",
 		Parameter:    []string{"path"},
@@ -99,6 +113,7 @@ var (
 		HaveVariadic: false,
 		Fn:           IOIsFile,
 	}
+	// ISDIR 检查是否为目录函数
 	ISDIR = object.BuiltinFunction{
 		Name:         "isDir",
 		Parameter:    []string{"path"},
@@ -106,6 +121,7 @@ var (
 		HaveVariadic: false,
 		Fn:           IOIsDir,
 	}
+	// FILESIZE 获取文件大小函数
 	FILESIZE = object.BuiltinFunction{
 		Name:         "fileSize",
 		Parameter:    []string{"path"},
@@ -113,6 +129,7 @@ var (
 		HaveVariadic: false,
 		Fn:           IOFileSize,
 	}
+	// COPY 复制文件函数
 	COPY = object.BuiltinFunction{
 		Name:         "copy",
 		Parameter:    []string{"src", "dst"},
@@ -120,6 +137,7 @@ var (
 		HaveVariadic: false,
 		Fn:           IOCopy,
 	}
+	// MOVE 移动文件函数
 	MOVE = object.BuiltinFunction{
 		Name:         "move",
 		Parameter:    []string{"src", "dst"},
@@ -127,6 +145,7 @@ var (
 		HaveVariadic: false,
 		Fn:           IOMove,
 	}
+	// REMOVE 删除文件或目录函数
 	REMOVE = object.BuiltinFunction{
 		Name:         "remove",
 		Parameter:    []string{"path"},
@@ -136,6 +155,20 @@ var (
 	}
 )
 
+// IORead 实现 read 函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 函数返回值
+//	error - 可能出现的错误
 func IORead(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	pathArg, ok := args[0].(*object.String)
 	if !ok {
@@ -160,6 +193,20 @@ func IORead(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos,
 	return &object.String{Value: string(content)}, nil
 }
 
+// IOWrite 实现 write 函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 空结果
+//	error - 可能出现的错误
 func IOWrite(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	pathArg, ok := args[0].(*object.String)
 	if !ok {
@@ -194,6 +241,20 @@ func IOWrite(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos
 	return &object.Null{}, nil
 }
 
+// IOAppend 实现 append 函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 空结果
+//	error - 可能出现的错误
 func IOAppend(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	pathArg, ok := args[0].(*object.String)
 	if !ok {
@@ -239,6 +300,20 @@ func IOAppend(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Po
 	return &object.Null{}, nil
 }
 
+// IOReadLines 实现 readLines 函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 字符串列表
+//	error - 可能出现的错误
 func IOReadLines(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	pathArg, ok := args[0].(*object.String)
 	if !ok {
@@ -269,6 +344,20 @@ func IOReadLines(f *frame.Frame, env *object.Environment, posStart, posEnd *util
 	return &object.List{Elements: elements}, nil
 }
 
+// IOMkdir 实现 mkdir 函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 空结果
+//	error - 可能出现的错误
 func IOMkdir(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	pathArg, ok := args[0].(*object.String)
 	if !ok {
@@ -293,6 +382,20 @@ func IOMkdir(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos
 	return &object.Null{}, nil
 }
 
+// IOListDir 实现 listDir 函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 文件列表
+//	error - 可能出现的错误
 func IOListDir(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	pathArg, ok := args[0].(*object.String)
 	if !ok {
@@ -322,6 +425,20 @@ func IOListDir(f *frame.Frame, env *object.Environment, posStart, posEnd *util.P
 	return &object.List{Elements: elements}, nil
 }
 
+// IOExists 实现 exists 函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 布尔值
+//	error - 可能出现的错误
 func IOExists(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	pathArg, ok := args[0].(*object.String)
 	if !ok {
@@ -349,6 +466,20 @@ func IOExists(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Po
 	return &object.Bool{Value: true}, nil
 }
 
+// IOIsFile 实现 isFile 函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 布尔值
+//	error - 可能出现的错误
 func IOIsFile(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	pathArg, ok := args[0].(*object.String)
 	if !ok {
@@ -376,6 +507,20 @@ func IOIsFile(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Po
 	return &object.Bool{Value: !info.IsDir()}, nil
 }
 
+// IOIsDir 实现 isDir 函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 布尔值
+//	error - 可能出现的错误
 func IOIsDir(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	pathArg, ok := args[0].(*object.String)
 	if !ok {
@@ -403,6 +548,20 @@ func IOIsDir(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos
 	return &object.Bool{Value: info.IsDir()}, nil
 }
 
+// IOFileSize 实现 fileSize 函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 文件大小
+//	error - 可能出现的错误
 func IOFileSize(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	pathArg, ok := args[0].(*object.String)
 	if !ok {
@@ -427,6 +586,20 @@ func IOFileSize(f *frame.Frame, env *object.Environment, posStart, posEnd *util.
 	return &object.Int{Value: info.Size()}, nil
 }
 
+// IOCopy 实现 copy 函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 空结果
+//	error - 可能出现的错误
 func IOCopy(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	srcArg, ok := args[0].(*object.String)
 	if !ok {
@@ -483,6 +656,20 @@ func IOCopy(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos,
 	return &object.Null{}, nil
 }
 
+// IOMove 实现 move 函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 空结果
+//	error - 可能出现的错误
 func IOMove(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	srcArg, ok := args[0].(*object.String)
 	if !ok {
@@ -517,6 +704,15 @@ func IOMove(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos,
 	return &object.Null{}, nil
 }
 
+// removeAll 递归删除文件或目录
+//
+// 参数:
+//
+//	path - 文件或目录路径
+//
+// 返回值:
+//
+//	error - 可能出现的错误
 func removeAll(path string) error {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -545,6 +741,20 @@ func removeAll(path string) error {
 	return os.Remove(path)
 }
 
+// IORemove 实现 remove 函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 空结果
+//	error - 可能出现的错误
 func IORemove(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	pathArg, ok := args[0].(*object.String)
 	if !ok {

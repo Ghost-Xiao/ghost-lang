@@ -12,7 +12,7 @@ import (
 // Float 表示浮点数值类型，实现了Number和Object接口
 // 支持的操作包括算术运算、比较运算等
 type Float struct {
-	Value float64
+	Value float64 // 浮点数实际值
 }
 
 // Type 返回值的类型

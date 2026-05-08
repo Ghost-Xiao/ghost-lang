@@ -13,6 +13,7 @@ var (
 	Arch      string // 目标架构，通过编译参数注入
 )
 
+// PrintVersion 打印ghost-lang的版本信息
 func PrintVersion() {
 	color.Blue(fmt.Sprintf("ghost-lang: ghost %s.", Version))
 }

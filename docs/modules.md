@@ -661,30 +661,6 @@ math.randInt(...range); // 返回: 7 (1 到 10 之间的随机整数)
 
 ---
 
-### seed 函数
-
-#### 功能描述
-设置随机数生成器的种子。
-
-#### 参数列表
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| s | 整数或浮点数 | 无 | 随机种子 |
-
-#### 返回值
-| 类型 | 说明 |
-|------|------|
-| null | 函数执行后返回空值 |
-
-#### 使用示例
-```ghost
-import "math";
-math.seed(42); // 设置随机种子为 42
-math.rand(); // 现在每次运行都会生成相同的随机序列
-```
-
----
-
 ## io 模块
 
 文件输入输出模块，提供文件操作功能。
@@ -994,4 +970,266 @@ io.move("old.txt", "new.txt"); // 重命名文件
 import "io";
 io.remove("file.txt"); // 删除文件
 io.remove("mydir"); // 删除目录
+```
+
+---
+
+## time 模块
+
+时间模块，提供时间处理和日期操作功能。
+
+### 导入方式
+```ghost
+import "time";
+```
+
+### Time 类
+
+时间类，表示一个具体的时间点。
+
+#### 构造函数
+
+Time 类支持多种构造方式：
+
+| 构造方式 | 描述 | 示例 |
+|----------|------|------|
+| 无参数 | 创建当前时间 | `time.Time()` |
+| 时间戳（纳秒） | 从 Unix 纪元开始的纳秒数 | `time.Time(1715241600000000000)` |
+| 格式字符串和日期字符串 | 解析日期时间 | `time.Time("yyyy-MM-dd HH:mm:ss", "2024-05-09 12:30:45")` |
+| 年、月、日 | 创建指定日期 | `time.Time(2024, 5, 9)` |
+| 年、月、日、时、分、秒 | 创建完整日期时间 | `time.Time(2024, 5, 9, 12, 30, 45)` |
+
+---
+
+#### Time 类方法
+
+| 方法 | 描述 | 参数 | 返回值 | 示例 |
+|------|------|------|--------|------|
+| timestamp | 获取时间戳（纳秒） | 无 | 整数（纳秒） | `t.timestamp()` |
+| setZone | 设置时区偏移（小时） | offset：时区偏移（小时） | 时区偏移 | `t.setZone(8)` |
+| nanosecond | 获取纳秒部分（0-999999999） | 无 | 整数 | `t.nanosecond()` |
+| microsecond | 获取微秒部分（0-999999） | 无 | 整数 | `t.microsecond()` |
+| millisecond | 获取毫秒部分（0-999） | 无 | 整数 | `t.millisecond()` |
+| year | 获取年份 | 无 | 整数 | `t.year()` |
+| month | 获取月份（1-12） | 无 | 整数 | `t.month()` |
+| day | 获取日期（1-31） | 无 | 整数 | `t.day()` |
+| hour | 获取小时（0-23） | 无 | 整数 | `t.hour()` |
+| minute | 获取分钟（0-59） | 无 | 整数 | `t.minute()` |
+| second | 获取秒（0-59） | 无 | 整数 | `t.second()` |
+| weekday | 获取星期几（0-6，0 表示周日） | 无 | 整数 | `t.weekday()` |
+| yearday | 获取一年中的第几天（1-366） | 无 | 整数 | `t.yearday()` |
+| format | 格式化时间为字符串 | layout：格式化布局（可选，默认 "yyyy-MM-dd HH:mm:ss"） | 字符串 | `t.format()`，`t.format("yyyy/MM/dd")` |
+
+##### 格式化占位符
+
+`format()` 方法使用 Java 风格的格式化字符串，支持以下占位符：
+
+| 占位符 | 说明 | 示例 |
+|--------|------|------|
+| `y` | 年 | `yyyy` → 2024, `yy` → 24 |
+| `M` | 月 | `MM` → 05, `M` → 5 |
+| `d` | 日 | `dd` → 09, `d` → 9 |
+| `H` | 小时（24小时制） | `HH` → 14, `H` → 14 |
+| `h` | 小时（12小时制） | `hh` → 02, `h` → 2 |
+| `m` | 分钟 | `mm` → 30, `m` → 30 |
+| `s` | 秒 | `ss` → 45, `s` → 45 |
+| `S` | 毫秒 | `SSS` → 123 |
+| `a` | 上午/下午 | `a` → AM/PM |
+
+常用格式示例：
+
+```ghost
+var t = time.Time(2024, 5, 9, 14, 30, 45);
+t.format("yyyy-MM-dd");           // "2024-05-09"
+t.format("yyyy/MM/dd HH:mm:ss");  // "2024/05/09 14:30:45"
+t.format("MM/dd/yyyy");           // "05/09/2024"
+t.format("HH:mm");                // "14:30"
+```
+
+##### 时间运算
+
+Time 类支持加减运算：
+
+```ghost
+var t1 = time.Time();
+var d = time.Duration(time.HOUR); // 1 小时
+
+var t2 = t1 + d; // 时间加上时长
+var t3 = t1 - d; // 时间减去时长
+var diff = t2 - t1; // 两个时间相减得到时长
+```
+
+##### 时间比较
+
+Time 类支持比较运算：
+
+```ghost
+t1 = time.Time(2024, 5, 1);
+t2 = time.Time(2024, 6, 1);
+
+t1 == t2; // 等于
+t1 != t2; // 不等于
+t1 < t2;  // 小于
+t1 <= t2; // 小于等于
+t1 > t2;  // 大于
+t1 >= t2; // 大于等于
+```
+
+---
+
+### Duration 类
+
+时长类，表示一段时间间隔。
+
+#### 构造函数
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| nanoseconds | 整数 | 无 | 纳秒数 |
+
+```ghost
+var d = time.Duration(time.MICROSECOND); // 1000 纳秒
+var d = time.Duration(time.SECOND); // 1 秒
+```
+
+---
+
+#### Duration 类方法
+
+| 方法 | 描述 | 参数 | 返回值 | 示例 |
+|------|------|------|--------|------|
+| nanosecond | 获取纳秒数 | 无 | 整数 | `d.nanosecond()` |
+| microsecond | 获取微秒数（浮点数） | 无 | 浮点数 | `d.microsecond()` |
+| millisecond | 获取毫秒数（浮点数） | 无 | 浮点数 | `d.millisecond()` |
+| second | 获取秒数（浮点数） | 无 | 浮点数 | `d.second()` |
+| minute | 获取分钟数（浮点数） | 无 | 浮点数 | `d.minute()` |
+| hour | 获取小时数（浮点数） | 无 | 浮点数 | `d.hour()` |
+| day | 获取天数（浮点数） | 无 | 浮点数 | `d.day()` |
+
+##### 时长运算
+
+Duration 类支持基本运算：
+
+```ghost
+var d1 = time.Duration(time.HOUR); // 1 小时
+var d2 = time.Duration(time.MINUTE * 30); // 30 分钟
+
+var d3 = d1 + d2; // 加法
+var d4 = d1 - d2; // 减法
+var d5 = d1 * 2;  // 乘法
+var d6 = d1 / 2;  // 除法
+```
+
+##### 时长比较
+
+Duration 类支持比较运算：
+
+```ghost
+var d1 = time.Duration(time.HOUR); // 1 小时
+var d2 = time.Duration(time.HOUR * 2); // 2 小时
+
+d1 == d2; // 等于
+d1 != d2; // 不等于
+d1 < d2;  // 小于
+d1 <= d2; // 小于等于
+d1 > d2;  // 大于
+d1 >= d2; // 大于等于
+```
+
+##### 时长取负
+
+```ghost
+var d = time.Duration(time.HOUR); // 1 小时
+var neg_d = -d; // -1 小时
+```
+
+---
+
+### sleep 函数
+
+暂停当前执行指定的持续时间。
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| duration | Duration | 无 | 时长（Duration 实例） |
+
+```ghost
+import "time";
+
+var d = time.Duration(time.SECOND); // 1 秒
+time.sleep(d); // 暂停 1 秒
+```
+
+---
+
+### 时间常量
+
+time 模块提供了以下时间常量（单位：纳秒）：
+
+| 常量 | 值 | 说明 |
+|------|-----|------|
+| `time.NANOSECOND` | 1 | 1 纳秒 |
+| `time.MICROSECOND` | 1000 | 1 微秒 = 1000 纳秒 |
+| `time.MILLISECOND` | 1000000 | 1 毫秒 = 1000000 纳秒 |
+| `time.SECOND` | 1000000000 | 1 秒 = 1000000000 纳秒 |
+| `time.MINUTE` | 60000000000 | 1 分钟 = 60 秒 |
+| `time.HOUR` | 3600000000000 | 1 小时 = 60 分钟 |
+| `time.DAY` | 86400000000000 | 1 天 = 24 小时 |
+
+使用示例：
+```ghost
+import "time";
+
+// 使用常量创建 Duration
+var one_second = time.Duration(time.SECOND);
+var one_hour = time.Duration(time.HOUR);
+
+// 时间运算
+var now = time.Time();
+var one_hour_later = now + time.Duration(time.HOUR);
+var one_minute_ago = now - time.Duration(time.MINUTE);
+
+// 睡眠 3 秒
+time.sleep(time.Duration(time.SECOND * 3));
+```
+
+---
+
+### 使用示例
+
+```ghost
+import "time";
+
+// 创建当前时间
+var now = time.Time();
+println(now.year());
+println(now.month());
+println(now.day());
+println(now.format());
+
+// 创建指定时间
+var t = time.Time(2024, 5, 9, 12, 30, 45);
+println(t.format("yyyy/MM/dd HH:mm:ss"));
+
+// 从字符串解析时间
+var t2 = time.Time("yyyy-MM-dd HH:mm:ss", "2024-06-01 08:00:00");
+println(t2.year());
+
+// 时间运算
+var d = time.Duration(time.HOUR); // 1 小时
+var later = now + d;
+println(later.format());
+
+// 时长计算
+var diff = later - now;
+println(diff.hour());
+
+// 使用时间常量
+var two_seconds = time.Duration(time.SECOND * 2);
+var one_and_a_half_hours = time.Duration(time.HOUR + 30 * time.MINUTE);
+
+// 睡眠
+println("Sleeping for 2 seconds...");
+time.sleep(two_seconds);
+println("Done!");
 ```

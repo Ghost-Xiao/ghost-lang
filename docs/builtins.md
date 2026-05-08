@@ -152,3 +152,221 @@ power(2, -1); // 返回: 0.5
 ```ghost
 power("2", 3); // 抛出类型错误
 ```
+
+## Error 类
+
+### 功能描述
+Error 是所有异常的基类，用于表示程序运行时发生的错误。
+
+### 构造函数
+```ghost
+Error(message)
+```
+
+### 参数列表
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| message | 字符串 | "" | 错误描述信息 |
+
+### 成员属性
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| message | 字符串 | 错误描述信息 |
+
+### 使用示例
+```ghost
+var err = Error("发生了错误");
+println(err.message); // 输出: 发生了错误
+```
+
+### 注意事项
+- Error 类是所有内置错误类型的基类
+- 自定义错误应该继承自 Error 类
+
+## OperationError 类
+
+### 功能描述
+OperationError 表示操作错误，当发生无效操作时抛出。
+
+### 继承关系
+OperationError 继承自 Error 类。
+
+### 构造函数
+```ghost
+OperationError(message)
+```
+
+### 参数列表
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| message | 字符串 | "" | 错误描述信息 |
+
+### 使用示例
+```ghost
+try {
+    throw OperationError("无效的操作");
+} catch e {
+    println("操作错误:", e.message);
+};
+```
+
+## MathError 类
+
+### 功能描述
+MathError 表示数学错误，当发生数学运算错误时抛出。
+
+### 继承关系
+MathError 继承自 Error 类。
+
+### 构造函数
+```ghost
+MathError(message)
+```
+
+### 参数列表
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| message | 字符串 | "" | 错误描述信息 |
+
+### 使用示例
+```ghost
+try {
+    throw MathError("数学运算错误");
+} catch e {
+    println("数学错误:", e.message);
+};
+```
+
+## TypeError 类
+
+### 功能描述
+TypeError 表示类型错误，当操作数的类型不正确时抛出。
+
+### 继承关系
+TypeError 继承自 Error 类。
+
+### 构造函数
+```ghost
+TypeError(message)
+```
+
+### 参数列表
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| message | 字符串 | "" | 错误描述信息 |
+
+### 使用示例
+```ghost
+try {
+    1[1]; // 可能抛出类型错误
+} catch e {
+    println("类型错误:", e.message);
+};
+```
+
+## IndexError 类
+
+### 功能描述
+IndexError 表示索引错误，当访问列表或字符串的无效索引时抛出。
+
+### 继承关系
+IndexError 继承自 Error 类。
+
+### 构造函数
+```ghost
+IndexError(message)
+```
+
+### 参数列表
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| message | 字符串 | "" | 错误描述信息 |
+
+### 使用示例
+```ghost
+try {
+    var list = [1, 2, 3];
+    var x = list[10]; // 索引超出范围
+} catch e {
+    println("索引错误:", e.message);
+};
+```
+
+## VariableError 类
+
+### 功能描述
+VariableError 表示变量错误，当访问未定义的变量或变量操作错误时抛出。
+
+### 继承关系
+VariableError 继承自 Error 类。
+
+### 构造函数
+```ghost
+VariableError(message)
+```
+
+### 参数列表
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| message | 字符串 | "" | 错误描述信息 |
+
+### 使用示例
+```ghost
+try {
+    // 访问未定义的变量
+    var x = undefinedVariable;
+} catch e {
+    println("变量错误:", e.message);
+};
+```
+
+## ArgumentError 类
+
+### 功能描述
+ArgumentError 表示参数错误，当函数调用的参数不正确时抛出。
+
+### 继承关系
+ArgumentError 继承自 Error 类。
+
+### 构造函数
+```ghost
+ArgumentError(message)
+```
+
+### 参数列表
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| message | 字符串 | "" | 错误描述信息 |
+
+### 使用示例
+```ghost
+func divide(x, y) {
+    if y == 0 {
+        throw ArgumentError("除数不能为零");
+    };
+    return x / y;
+};
+```
+
+## ModuleError 类
+
+### 功能描述
+ModuleError 表示模块错误，当模块操作发生错误时抛出。
+
+### 继承关系
+ModuleError 继承自 Error 类。
+
+### 构造函数
+```ghost
+ModuleError(message)
+```
+
+### 参数列表
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| message | 字符串 | "" | 错误描述信息 |
+
+### 使用示例
+```ghost
+import "nonexistentModule"; // 导入不存在的模块，会抛出 ModuleError
+```

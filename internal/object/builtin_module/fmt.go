@@ -9,8 +9,14 @@ import (
 	"github.com/Ghost-Xiao/ghost-lang/internal/util"
 )
 
+// FmtModule 表示 fmt 内置模块
 var FmtModule = initFmtModule()
 
+// initFmtModule 初始化 fmt 模块
+//
+// 返回值:
+//
+//	*object.Module - 初始化后的 fmt 模块
 func initFmtModule() *object.Module {
 	env := &object.Environment{
 		Name:  "fmt",
@@ -31,6 +37,7 @@ func initFmtModule() *object.Module {
 }
 
 var (
+	// PRINT 打印函数（不换行）
 	PRINT = object.BuiltinFunction{
 		Name:         "print",
 		Parameter:    []string{"x"},
@@ -38,6 +45,7 @@ var (
 		HaveVariadic: true,
 		Fn:           FmtPrint,
 	}
+	// PRINTLN 打印函数（换行）
 	PRINTLN = object.BuiltinFunction{
 		Name:         "println",
 		Parameter:    []string{"x"},
@@ -45,6 +53,7 @@ var (
 		HaveVariadic: true,
 		Fn:           FmtPrintln,
 	}
+	// PRINTF 格式化打印函数
 	PRINTF = object.BuiltinFunction{
 		Name:         "printf",
 		Parameter:    []string{"format", "a"},
@@ -52,6 +61,7 @@ var (
 		HaveVariadic: true,
 		Fn:           FmtPrintf,
 	}
+	// SPRINT 格式化输出为字符串（不换行）
 	SPRINT = object.BuiltinFunction{
 		Name:         "sprint",
 		Parameter:    []string{"x"},
@@ -59,6 +69,7 @@ var (
 		HaveVariadic: true,
 		Fn:           FmtSprint,
 	}
+	// SPRINTF 格式化输出为字符串
 	SPRINTF = object.BuiltinFunction{
 		Name:         "sprintf",
 		Parameter:    []string{"format", "a"},
@@ -68,6 +79,20 @@ var (
 	}
 )
 
+// FmtPrint 实现 print 函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 函数返回值
+//	error - 可能出现的错误
 func FmtPrint(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	for _, arg := range args[0].(*object.List).Elements {
 		switch v := arg.(type) {
@@ -88,6 +113,20 @@ func FmtPrint(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Po
 	return &object.Null{}, nil
 }
 
+// FmtPrintln 实现 println 函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 空结果
+//	error - 可能出现的错误
 func FmtPrintln(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	for i, arg := range args[0].(*object.List).Elements {
 		if i > 0 {
@@ -112,6 +151,20 @@ func FmtPrintln(f *frame.Frame, env *object.Environment, posStart, posEnd *util.
 	return &object.Null{}, nil
 }
 
+// FmtPrintf 实现 printf 函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 空结果
+//	error - 可能出现的错误
 func FmtPrintf(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	if len(args) == 0 {
 		return nil, &errors.TypeError{
@@ -156,6 +209,20 @@ func FmtPrintf(f *frame.Frame, env *object.Environment, posStart, posEnd *util.P
 	return &object.Null{}, nil
 }
 
+// FmtSprint 实现 sprint 函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 字符串结果
+//	error - 可能出现的错误
 func FmtSprint(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	var result string
 	for _, arg := range args[0].(*object.List).Elements {
@@ -177,6 +244,20 @@ func FmtSprint(f *frame.Frame, env *object.Environment, posStart, posEnd *util.P
 	return &object.String{Value: result}, nil
 }
 
+// FmtSprintf 实现 sprintf 函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 字符串结果
+//	error - 可能出现的错误
 func FmtSprintf(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
 	if len(args) == 0 {
 		return nil, &errors.TypeError{

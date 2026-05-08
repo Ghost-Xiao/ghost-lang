@@ -34,28 +34,20 @@ func initMethodClass() *object.Class {
 
 var (
 	// METHODNAME 表示 Method 类的 name 方法
-	METHODNAME = object.Method{
-		Name: "name",
-		Function: &object.BuiltinFunction{
-			Name:         "name",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           MethodName,
-		},
-		Instance: nil,
+	METHODNAME = object.BuiltinFunction{
+		Name:         "name",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           MethodName,
 	}
 	// METHODOWNER 表示 Method 类的 owner 方法
-	METHODOWNER = object.Method{
-		Name: "owner",
-		Function: &object.BuiltinFunction{
-			Name:         "owner",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           MethodOwner,
-		},
-		Instance: nil,
+	METHODOWNER = object.BuiltinFunction{
+		Name:         "owner",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           MethodOwner,
 	}
 )
 

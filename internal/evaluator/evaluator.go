@@ -28,7 +28,7 @@ type Evaluator struct {
 
 // NewEvaluator 创建一个新的解释器实例
 //
-// 参数：
+// 参数:
 //
 //	frame - 调用栈帧
 //	moduleCache - 模块缓存及其状态，只包含加载中的模块
@@ -82,6 +82,10 @@ func (e *Evaluator) Eval(nodes ast.Node, env *object.Environment) object.Object 
 		return e.evalImportStatement(n, env)
 	case *ast.ClassStatement:
 		return e.evalClassStatement(n, env)
+	case *ast.TryStatement:
+		return e.evalTryStatement(n, env)
+	case *ast.ThrowStatement:
+		return e.evalThrowStatement(n, env)
 	case *ast.PrefixExpression:
 		return e.evalPrefixExpression(n, env)
 	case *ast.InfixExpression:
@@ -505,9 +509,9 @@ func (e *Evaluator) evalMemberAccessExpression(memberAccessExpression *ast.Membe
 				}
 				return nil
 			}
-			if _, ok := ret.Value.(*object.Method); ok {
+			if fn, ok := ret.Value.(*object.BuiltinFunction); ok {
 				return &object.BoundBuiltinMethod{
-					Function: ret.Value.(*object.Method),
+					Function: fn,
 					Receiver: t,
 				}
 			} else {
@@ -530,9 +534,9 @@ func (e *Evaluator) evalMemberAccessExpression(memberAccessExpression *ast.Membe
 				}
 				return nil
 			}
-			if _, ok := ret.Value.(*object.Method); ok {
+			if fn, ok := ret.Value.(*object.BuiltinFunction); ok {
 				return &object.BoundBuiltinMethod{
-					Function: ret.Value.(*object.Method),
+					Function: fn,
 					Receiver: t,
 				}
 			} else {
@@ -552,15 +556,33 @@ func (e *Evaluator) evalMemberAccessExpression(memberAccessExpression *ast.Membe
 			}
 			return nil
 		}
+		// 如果父类是内置类
+		if builtinClass, ok := builtinclass.BuiltinClasses[parent.Name]; ok {
+			if ret, ok := builtinClass.Member.Get(member); ok {
+				return &object.BoundBuiltinMethod{
+					Function: ret.Value.(*object.BuiltinFunction),
+					Receiver: t,
+				}
+			}
+		}
 		// 在父类中获取方法
 		for p := parent; p != nil; p = p.Parent {
 			ret, ok := p.Member.Get(member)
 			if ok {
 				// 将方法绑定到当前实例
-				return &object.Method{
-					Name:     ret.Value.(*object.Function).Name,
-					Function: ret.Value.(*object.Function),
-					Instance: t.Instance,
+				switch fn := ret.Value.(type) {
+				case *object.Function:
+					return &object.Method{
+						Name:     fn.Name,
+						Function: fn,
+						Instance: t.Instance,
+					}
+				case *object.BuiltinFunction:
+					return &object.Method{
+						Name:     fn.Name,
+						Function: fn,
+						Instance: t.Instance,
+					}
 				}
 			}
 		}
@@ -571,7 +593,7 @@ func (e *Evaluator) evalMemberAccessExpression(memberAccessExpression *ast.Membe
 			PosEnd:   memberAccessExpression.PosEnd,
 		}
 		return nil
-	case *object.Int, *object.String, *object.List, *object.Map, *object.Namespace, *object.Class, *object.Function, *object.Method:
+	case *object.Int, *object.Float, *object.Bool, *object.String, *object.List, *object.Map, *object.Namespace, *object.Class, *object.Function, *object.Method:
 		// 获取内置成员
 		ret, ok := builtinclass.BuiltinClasses[t.Type()].Member.Get(member)
 		if !ok {
@@ -584,7 +606,7 @@ func (e *Evaluator) evalMemberAccessExpression(memberAccessExpression *ast.Membe
 			return nil
 		}
 		return &object.BoundBuiltinMethod{
-			Function: ret.Value.(*object.Method),
+			Function: ret.Value.(*object.BuiltinFunction),
 			Receiver: t,
 		}
 	default:
@@ -1324,6 +1346,188 @@ func (e *Evaluator) evalClassStatement(classStatement *ast.ClassStatement, env *
 	return nil
 }
 
+// evalTryStatement 处理try语句节点
+// 处理try语句节点，包括try、catch、finally语句的执行
+//
+// 参数:
+//
+//	tryStatement - try语句节点
+//	env - 执行环境
+//
+// 返回值:
+//
+//	object.Object
+func (e *Evaluator) evalTryStatement(tryStatement *ast.TryStatement, env *object.Environment) object.Object {
+	// 创建try环境
+	tryEnv := &object.Environment{
+		Name:  "try",
+		Store: make(map[string]*object.Symbol),
+		Outer: env,
+	}
+	// 执行try语句
+	tryRet := e.evalWithSpecialValue(tryStatement.Body, tryEnv)
+	var catchRet object.Object = nil
+	// 判断是否执行catch语句
+	if e.Err != nil && tryStatement.Catch != nil {
+		// 创建catch环境
+		catchEnv := &object.Environment{
+			Name:  "catch",
+			Store: make(map[string]*object.Symbol),
+			Outer: env,
+		}
+		// 将异常信息赋值给catch的变量
+		sym := &object.Symbol{
+			Name:    tryStatement.CatchVar.(*ast.IdentifierExpression).Name,
+			Value:   object.ConvertErrorToInstance(e.Err, catchEnv),
+			IsConst: true,
+		}
+		// 绑定异常信息
+		catchEnv.Set(sym.Name, sym)
+		// 执行catch语句
+		e.Err = nil
+		catchRet = e.evalWithSpecialValue(tryStatement.Catch, catchEnv)
+		if e.Err != nil {
+			oldErr := e.Err
+			e.Err = nil
+			finallyRet := e.evalFinallyStatement(tryStatement.Finally, tryRet, catchRet, env)
+			if e.Err == nil {
+				e.Err = oldErr
+			}
+			return finallyRet
+		}
+	}
+	oldErr := e.Err
+	e.Err = nil
+	// 执行finally语句
+	finallyRet := e.evalFinallyStatement(tryStatement.Finally, tryRet, catchRet, env)
+	if finallyRet != nil {
+		return finallyRet
+	}
+	if e.Err == nil {
+		e.Err = oldErr
+	}
+	if e.Err != nil {
+		return nil
+	}
+	var ret = tryRet
+	if catchRet != nil {
+		ret = catchRet
+	}
+	if returnValue, ok := ret.(*object.ReturnValue); ok {
+		return returnValue
+	}
+	if breakValue, ok := ret.(*object.BreakValue); ok {
+		return breakValue
+	}
+	if continueValue, ok := ret.(*object.ContinueValue); ok {
+		return continueValue
+	}
+	return nil
+}
+
+// evalFinallyStatement 处理finally语句节点
+// 处理finally语句节点，包括finally语句的执行
+//
+// 参数:
+//
+//	finallyStatement - finally语句节点
+//	tryRet - try语句执行结果
+//	catchRet - catch语句执行结果
+//	env - 执行环境
+//
+// 返回值:
+//
+//	object.Object - finally语句执行结果
+func (e *Evaluator) evalFinallyStatement(finallyStatement ast.Statement, tryRet, catchRet object.Object, env *object.Environment) object.Object {
+	// 创建finally环境
+	finallyEnv := &object.Environment{
+		Name:  "finally",
+		Store: make(map[string]*object.Symbol),
+		Outer: env,
+	}
+	// 执行finally语句
+	finallyRet := e.evalWithSpecialValue(finallyStatement, finallyEnv)
+	if e.Err != nil {
+		return nil
+	}
+	if returnValue, ok := finallyRet.(*object.ReturnValue); ok {
+		return returnValue
+	}
+	if breakValue, ok := finallyRet.(*object.BreakValue); ok {
+		return breakValue
+	}
+	if continueValue, ok := finallyRet.(*object.ContinueValue); ok {
+		return continueValue
+	}
+	var ret = tryRet
+	if catchRet != nil {
+		ret = catchRet
+	}
+	if returnValue, ok := ret.(*object.ReturnValue); ok {
+		return returnValue
+	}
+	if breakValue, ok := ret.(*object.BreakValue); ok {
+		return breakValue
+	}
+	if continueValue, ok := ret.(*object.ContinueValue); ok {
+		return continueValue
+	}
+	return nil
+}
+
+// evalThrowStatement 处理throw语句节点
+// 抛出为Error子类或Error类本身的实例的异常
+//
+// 参数:
+//
+//	throwStatement - throw语句节点
+//	env - 执行环境
+//
+// 返回值:
+//
+//	object.Object - object.Error实例
+func (e *Evaluator) evalThrowStatement(throwStatement *ast.ThrowStatement, env *object.Environment) object.Object {
+	// 评估异常表达式
+	error := e.Eval(throwStatement.Expr, env)
+	if e.Err != nil {
+		return nil
+	}
+	// 判断是否是Error的子类
+	err, ok := error.(*object.Instance)
+	if !ok {
+		e.Err = &errors.TypeError{
+			Frame:    e.Frame,
+			Message:  "thrown exception must be an instance.",
+			PosStart: throwStatement.PosStart,
+			PosEnd:   throwStatement.PosEnd,
+		}
+		return nil
+	}
+	ok = false
+	for cls := err.Class; cls != nil; cls = cls.Parent {
+		if cls.Name == "Error" {
+			ok = true
+			break
+		}
+	}
+	if !ok {
+		e.Err = &errors.TypeError{
+			Frame:    e.Frame,
+			Message:  "thrown value must be an instance of Error or its subclasses.",
+			PosStart: throwStatement.PosStart,
+			PosEnd:   throwStatement.PosEnd,
+		}
+		return nil
+	}
+	e.Err = &object.UserError{
+		Err:      err,
+		Frame:    e.Frame,
+		PosStart: throwStatement.PosStart,
+		PosEnd:   throwStatement.PosEnd,
+	}
+	return nil
+}
+
 // evalIntExpression 处理整数表达式节点
 // 将AST整数节点转换为运行时整数值
 //
@@ -1334,7 +1538,7 @@ func (e *Evaluator) evalClassStatement(classStatement *ast.ClassStatement, env *
 //
 // 返回值:
 //
-//	object.Object - 包含整数值的value.Int实例
+//	object.Object - object.Int实例
 func (e *Evaluator) evalIntExpression(numberExpression *ast.IntExpression, _ *object.Environment) object.Object {
 	return &object.Int{Value: numberExpression.Value}
 }
@@ -1349,7 +1553,7 @@ func (e *Evaluator) evalIntExpression(numberExpression *ast.IntExpression, _ *ob
 //
 // 返回值:
 //
-//	object.Object - 包含浮点值的value.Float实例
+//	object.Object - object.Float实例
 func (e *Evaluator) evalFloatExpression(numberExpression *ast.FloatExpression, _ *object.Environment) object.Object {
 	return &object.Float{Value: numberExpression.Value}
 }
@@ -1364,7 +1568,7 @@ func (e *Evaluator) evalFloatExpression(numberExpression *ast.FloatExpression, _
 //
 // 返回值:
 //
-//	object.Object - 包含布尔值的value.Bool实例
+//	object.Object - object.Bool实例
 func (e *Evaluator) evalBooleanExpression(booleanExpression *ast.BoolExpression, _ *object.Environment) object.Object {
 	return &object.Bool{Value: booleanExpression.Value}
 }
@@ -1379,7 +1583,7 @@ func (e *Evaluator) evalBooleanExpression(booleanExpression *ast.BoolExpression,
 //
 // 返回值:
 //
-//	object.Object - 空值value.Null实例
+//	object.Object - object.Null实例
 func (e *Evaluator) evalNullExpression(_ *ast.NullExpression, _ *object.Environment) object.Object {
 	return &object.Null{}
 }
@@ -1394,7 +1598,7 @@ func (e *Evaluator) evalNullExpression(_ *ast.NullExpression, _ *object.Environm
 //
 // 返回值:
 //
-//	object.Object - 包含字符串值的value.String实例
+//	object.Object - object.String实例
 func (e *Evaluator) evalStringExpression(stringExpression *ast.StringExpression, _ *object.Environment) object.Object {
 	return &object.String{Value: stringExpression.Value}
 }
@@ -2573,6 +2777,17 @@ func (e *Evaluator) evalInfixOperator(infixExpression *ast.InfixExpression, left
 	return nil
 }
 
+// evalWithSpecialValue 处理特殊值节点
+// 处理特殊值节点，包括返回值、中断值、继续值等
+//
+// 参数:
+//
+//	node - 节点
+//	env - 执行环境
+//
+// 返回值:
+//
+//	object.Object - 节点的结果，发生错误时返回nil
 func (e *Evaluator) evalWithSpecialValue(node ast.Node, env *object.Environment) object.Object {
 	var ret object.Object = &object.Null{}
 	switch n := node.(type) {
@@ -2639,6 +2854,9 @@ func (e *Evaluator) evalBlockExpression(blockExpression *ast.BlockExpression, en
 	for _, statement := range blockExpression.Statements {
 		// 获取返回值
 		ret = e.evalWithSpecialValue(statement, blockEnv)
+		if e.Err != nil {
+			return nil
+		}
 		if returnValue, ok := ret.(*object.ReturnValue); ok {
 			return returnValue
 		}
@@ -2696,32 +2914,186 @@ func (e *Evaluator) evalIfExpression(ifExpression *ast.IfExpression, env *object
 	}
 }
 
-// evaluateCallArguments 评估和验证调用参数
+// ParameterDefinition 参数定义接口，抽象不同类型的参数定义
+type ParameterDefinition interface {
+	// ParamCount 返回参数总数
+	ParamCount() int
+	// DefaultCount 返回有默认值的参数数量
+	DefaultCount() int
+	// HasVariadic 返回是否有可变参数
+	HasVariadic() bool
+	// GetDefaultValue 获取指定位置的默认值，需要在指定环境中求值
+	GetDefaultValue(index int, evaluator *Evaluator, env *object.Environment) (object.Object, error)
+}
+
+// astParameterDefinition AST 参数定义的适配器
+type astParameterDefinition struct {
+	params []*ast.Parameter // AST 参数定义列表
+}
+
+// ParamCount 返回参数总数
 //
+// 返回值:
+//
+//	int - 参数总数
+func (a *astParameterDefinition) ParamCount() int {
+	return len(a.params)
+}
+
+// DefaultCount 返回有默认值的参数数量
+//
+// 返回值:
+//
+//	int - 有默认值的参数数量
+func (a *astParameterDefinition) DefaultCount() int {
+	count := 0
+	for _, param := range a.params {
+		if param.DefaultValue != nil {
+			count++
+		}
+	}
+	return count
+}
+
+// HasVariadic 返回是否有可变参数
+//
+// 返回值:
+//
+//	bool - 是否有可变参数
+func (a *astParameterDefinition) HasVariadic() bool {
+	for _, param := range a.params {
+		if param.IsVariadic {
+			return true
+		}
+	}
+	return false
+}
+
+// GetDefaultValue 获取指定位置的默认值，需要在指定环境中求值
+// 参数:
+//
+//	index - 参数索引
+//	evaluator - 评估器
+//	env - 执行环境
+//
+// 返回值:
+//
+//	object.Object - 参数值
+//	error - 可能出现的错误
+func (a *astParameterDefinition) GetDefaultValue(index int, evaluator *Evaluator, env *object.Environment) (object.Object, error) {
+	if index >= len(a.params) {
+		return nil, fmt.Errorf("parameter index out of range")
+	}
+	defaultValue := evaluator.Eval(a.params[index].DefaultValue, env)
+	if evaluator.Err != nil {
+		return nil, evaluator.Err
+	}
+	return defaultValue, nil
+}
+
+// builtinParameterDefinition 内置函数参数定义的适配器
+type builtinParameterDefinition struct {
+	paramNames    []string
+	defaultValues []object.Object
+	haveVariadic  bool
+}
+
+// ParamCount 返回参数总数
+//
+// 返回值:
+//
+//	int - 参数总数
+func (b *builtinParameterDefinition) ParamCount() int {
+	return len(b.paramNames)
+}
+
+// DefaultCount 返回有默认值的参数数量
+//
+// 返回值:
+//
+//	int - 有默认值的参数数量
+func (b *builtinParameterDefinition) DefaultCount() int {
+	count := 0
+	for _, val := range b.defaultValues {
+		if val != nil {
+			count++
+		}
+	}
+	return count
+}
+
+// HasVariadic 返回是否有可变参数
+//
+// 返回值:
+//
+//	bool - 是否有可变参数
+func (b *builtinParameterDefinition) HasVariadic() bool {
+	return b.haveVariadic
+}
+
+// GetDefaultValue 获取指定位置的默认值，需要在指定环境中求值
+// 参数:
+//
+//	index - 参数索引
+//	evaluator - 评估器
+//	env - 执行环境
+//
+// 返回值:
+//
+//	object.Object - 参数值
+//	error - 可能出现的错误
+func (b *builtinParameterDefinition) GetDefaultValue(index int, evaluator *Evaluator, env *object.Environment) (object.Object, error) {
+	if index >= len(b.defaultValues) {
+		return nil, fmt.Errorf("parameter index out of range")
+	}
+	return b.defaultValues[index], nil
+}
+
+// createArgumentCountError 创建参数数量错误消息
+// 参数:
+//
+//	least - 最少参数数量
+//	max - 最大参数数量
+//	actual - 实际参数数量
+//	callExpression - 调用表达式
+//
+// 返回值:
+//
+//	*errors.ArgumentError - 参数数量错误消息
+func (e *Evaluator) createArgumentCountError(least, max, actual int, callExpression *ast.CallExpression) *errors.ArgumentError {
+	var message string
+	switch least {
+	case max:
+		message = fmt.Sprintf("expected %d parameters, got %d.", max, actual)
+	case 1:
+		message = fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", max, actual)
+	default:
+		message = fmt.Sprintf("expected between %d and %d parameters, got %d.", least, max, actual)
+	}
+	return &errors.ArgumentError{
+		Frame:    e.Frame,
+		Message:  message,
+		PosStart: callExpression.PosStart,
+		PosEnd:   callExpression.PosEnd,
+	}
+}
+
+// validateCallArguments 统一的参数验证逻辑
 // 参数:
 //
 //	callExpression - 调用表达式
 //	env - 执行环境
-//	params - 函数参数列表
+//	paramDef - 参数定义
 //
 // 返回值:
 //
 //	[]object.Object - 评估后的参数列表
-//	bool - 是否成功
-func (e *Evaluator) evaluateCallArguments(
+//	bool - 是否成功验证
+func (e *Evaluator) validateCallArguments(
 	callExpression *ast.CallExpression,
 	env *object.Environment,
-	params []*ast.Parameter,
+	paramDef ParameterDefinition,
 ) ([]object.Object, bool) {
-	// 检查是否有可变参数
-	hasVariadic := false
-	for _, param := range params {
-		if param.IsVariadic {
-			hasVariadic = true
-			break
-		}
-	}
-
 	// 检查是否有解包参数
 	hasUnpack := false
 	for _, unpack := range callExpression.IsUnpack {
@@ -2732,15 +3104,9 @@ func (e *Evaluator) evaluateCallArguments(
 	}
 
 	// 获取参数长度
-	paramLen := len(params)
-
-	// 计算默认参数数量
-	defaultLen := 0
-	for _, param := range params {
-		if param.DefaultValue != nil {
-			defaultLen++
-		}
-	}
+	paramLen := paramDef.ParamCount()
+	defaultLen := paramDef.DefaultCount()
+	hasVariadic := paramDef.HasVariadic()
 
 	// 计算传入参数数量
 	argLen := 0
@@ -2756,13 +3122,11 @@ func (e *Evaluator) evaluateCallArguments(
 
 	// 如果有可变参数，调整参数数量检查逻辑
 	if hasVariadic {
-		// 最小参数数 = 总参数数 - 默认参数数 - 1（减去可变参数）
 		least--
-		// 最大参数数没有限制
 		max = -1
 	}
 
-	// 参数数量不匹配检查
+	// 参数数量不匹配检查（无解包参数时）
 	if !hasUnpack {
 		if max == -1 {
 			if argLen < least {
@@ -2776,28 +3140,7 @@ func (e *Evaluator) evaluateCallArguments(
 			}
 		} else {
 			if !(least <= argLen && argLen <= max) {
-				if defaultLen == 0 {
-					e.Err = &errors.ArgumentError{
-						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected %d parameters, got %d.", paramLen, argLen),
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
-					}
-				} else if least == 1 {
-					e.Err = &errors.ArgumentError{
-						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", paramLen, argLen),
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
-					}
-				} else {
-					e.Err = &errors.ArgumentError{
-						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, paramLen, argLen),
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
-					}
-				}
+				e.Err = e.createArgumentCountError(least, paramLen, argLen, callExpression)
 				return nil, false
 			}
 		}
@@ -2809,8 +3152,14 @@ func (e *Evaluator) evaluateCallArguments(
 		if arg == nil {
 			// 如果参数为nil，用默认值填充
 			if len(argument) < paramLen {
-				defaultValue := e.Eval(params[len(argument)].DefaultValue, env)
-				if e.Err != nil {
+				defaultValue, err := paramDef.GetDefaultValue(len(argument), e, env)
+				if err != nil {
+					e.Err = &errors.ArgumentError{
+						Frame:    e.Frame,
+						Message:  err.Error(),
+						PosStart: callExpression.PosStart,
+						PosEnd:   callExpression.PosEnd,
+					}
 					return nil, false
 				}
 				argument = append(argument, defaultValue)
@@ -2843,8 +3192,14 @@ func (e *Evaluator) evaluateCallArguments(
 		if hasVariadic && i == paramLen-1 {
 			break
 		}
-		defaultValue := e.Eval(params[i].DefaultValue, env)
-		if e.Err != nil {
+		defaultValue, err := paramDef.GetDefaultValue(i, e, env)
+		if err != nil {
+			e.Err = &errors.ArgumentError{
+				Frame:    e.Frame,
+				Message:  err.Error(),
+				PosStart: callExpression.PosStart,
+				PosEnd:   callExpression.PosEnd,
+			}
 			return nil, false
 		}
 		argument = append(argument, defaultValue)
@@ -2864,33 +3219,33 @@ func (e *Evaluator) evaluateCallArguments(
 				return nil, false
 			}
 		} else if !(least <= actualArgLen && actualArgLen <= max) {
-			if defaultLen == 0 {
-				e.Err = &errors.ArgumentError{
-					Frame:    e.Frame,
-					Message:  fmt.Sprintf("expected %d parameters, got %d.", paramLen, actualArgLen),
-					PosStart: callExpression.PosStart,
-					PosEnd:   callExpression.PosEnd,
-				}
-			} else if least == 1 {
-				e.Err = &errors.ArgumentError{
-					Frame:    e.Frame,
-					Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", paramLen, actualArgLen),
-					PosStart: callExpression.PosStart,
-					PosEnd:   callExpression.PosEnd,
-				}
-			} else {
-				e.Err = &errors.ArgumentError{
-					Frame:    e.Frame,
-					Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, paramLen, actualArgLen),
-					PosStart: callExpression.PosStart,
-					PosEnd:   callExpression.PosEnd,
-				}
-			}
+			e.Err = e.createArgumentCountError(least, paramLen, actualArgLen, callExpression)
 			return nil, false
 		}
 	}
 
 	return argument, true
+}
+
+// evaluateCallArguments 评估和验证调用参数
+//
+// 参数:
+//
+//	callExpression - 调用表达式
+//	env - 执行环境
+//	params - 函数参数列表
+//
+// 返回值:
+//
+//	[]object.Object - 评估后的参数列表
+//	bool - 是否成功
+func (e *Evaluator) evaluateCallArguments(
+	callExpression *ast.CallExpression,
+	env *object.Environment,
+	params []*ast.Parameter,
+) ([]object.Object, bool) {
+	paramDef := &astParameterDefinition{params: params}
+	return e.validateCallArguments(callExpression, env, paramDef)
 }
 
 // evaluateCallBuiltinArguments 评估和验证内置函数调用参数
@@ -2914,178 +3269,35 @@ func (e *Evaluator) evaluateCallBuiltinArguments(
 	defaultValue []object.Object,
 	haveVariadic bool,
 ) ([]object.Object, bool) {
-
-	// 检查是否有解包参数
-	hasUnpack := false
-	for _, unpack := range callExpression.IsUnpack {
-		if unpack {
-			hasUnpack = true
-			break
-		}
+	paramDef := &builtinParameterDefinition{
+		paramNames:    params,
+		defaultValues: defaultValue,
+		haveVariadic:  haveVariadic,
+	}
+	argument, ok := e.validateCallArguments(callExpression, env, paramDef)
+	if !ok {
+		return nil, false
 	}
 
-	// 获取参数长度
-	paramLen := len(params)
-
-	// 计算默认参数数量
-	defaultLen := 0
-	for _, defaluts := range defaultValue {
-		if defaluts != nil {
-			defaultLen++
-		}
-	}
-
-	// 计算传入参数数量
-	argLen := 0
-	for _, arg := range callExpression.Argument {
-		if arg != nil {
-			argLen++
-		}
-	}
-
-	// 参数数量检查
-	least := paramLen - defaultLen
-	max := paramLen
-
-	// 如果有可变参数，调整参数数量检查逻辑
+	// 处理内置函数的可变参数：收集剩余的所有参数到一个列表中
 	if haveVariadic {
-		// 最小参数数 = 总参数数 - 默认参数数 - 1（减去可变参数）
-		least--
-		// 最大参数数没有限制
-		max = -1
-	}
-
-	// 参数数量不匹配检查
-	if !hasUnpack {
-		if max == -1 {
-			if argLen < least {
-				e.Err = &errors.ArgumentError{
-					Frame:    e.Frame,
-					Message:  fmt.Sprintf("expected at least %d parameters, got %d.", least, argLen),
-					PosStart: callExpression.PosStart,
-					PosEnd:   callExpression.PosEnd,
-				}
-				return nil, false
-			}
-		} else {
-			if !(least <= argLen && argLen <= max) {
-				if defaultLen == 0 {
-					e.Err = &errors.ArgumentError{
-						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected %d parameters, got %d.", paramLen, argLen),
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
-					}
-				} else if least == 1 {
-					e.Err = &errors.ArgumentError{
-						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", paramLen, argLen),
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
-					}
-				} else {
-					e.Err = &errors.ArgumentError{
-						Frame:    e.Frame,
-						Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, paramLen, argLen),
-						PosStart: callExpression.PosStart,
-						PosEnd:   callExpression.PosEnd,
-					}
-				}
-				return nil, false
+		paramLen := len(params)
+		defaultLen := 0
+		for _, val := range defaultValue {
+			if val != nil {
+				defaultLen++
 			}
 		}
-	}
+		least := paramLen - defaultLen - 1
 
-	// 评估参数表达式
-	var argument []object.Object
-	for i, arg := range callExpression.Argument {
-		if arg == nil {
-			// 如果参数为nil，用默认值填充
-			if len(argument) < paramLen {
-				argument = append(argument, defaultValue[len(argument)])
-			}
-			continue
-		}
-		a := e.Eval(arg, env)
-		if e.Err != nil {
-			return nil, false
-		}
-		if callExpression.IsUnpack[i] {
-			if unpackObj, ok := a.(*object.List); ok {
-				argument = append(argument, unpackObj.Elements...)
-			} else {
-				e.Err = &errors.TypeError{
-					Frame:    e.Frame,
-					Message:  "unpack parameter must be a list expression.",
-					PosStart: callExpression.PosStart,
-					PosEnd:   callExpression.PosEnd,
-				}
-				return nil, false
-			}
-		} else {
-			argument = append(argument, a)
-		}
-	}
-
-	// 有默认参数未被赋值时，用默认值填充
-	for i := len(argument); i < paramLen; i++ {
-		if haveVariadic && i == paramLen-1 {
-			break
-		}
-		argument = append(argument, defaultValue[i])
-	}
-
-	if haveVariadic {
-		// 处理可变参数：收集剩余的所有参数到一个列表中
 		variadicArgs := make([]object.Object, 0)
 		for j := least; j < len(argument); j++ {
 			variadicArgs = append(variadicArgs, argument[j])
 		}
-		// 创建列表对象
 		listObj := &object.List{
 			Elements: variadicArgs,
 		}
 		argument = append(argument[:least], listObj)
-	}
-
-	// 如果有解包参数，检查参数数量是否匹配
-	if hasUnpack {
-		actualArgLen := len(argument)
-		if max == -1 {
-			if actualArgLen < least {
-				e.Err = &errors.ArgumentError{
-					Frame:    e.Frame,
-					Message:  fmt.Sprintf("expected at least %d parameters, got %d.", least, actualArgLen),
-					PosStart: callExpression.PosStart,
-					PosEnd:   callExpression.PosEnd,
-				}
-				return nil, false
-			}
-		} else if !(least <= actualArgLen && actualArgLen <= max) {
-			if defaultLen == 0 {
-				e.Err = &errors.ArgumentError{
-					Frame:    e.Frame,
-					Message:  fmt.Sprintf("expected %d parameters, got %d.", paramLen, actualArgLen),
-					PosStart: callExpression.PosStart,
-					PosEnd:   callExpression.PosEnd,
-				}
-			} else if least == 1 {
-				e.Err = &errors.ArgumentError{
-					Frame:    e.Frame,
-					Message:  fmt.Sprintf("expected between 1 parameter and %d parameters, got %d.", paramLen, actualArgLen),
-					PosStart: callExpression.PosStart,
-					PosEnd:   callExpression.PosEnd,
-				}
-			} else {
-				e.Err = &errors.ArgumentError{
-					Frame:    e.Frame,
-					Message:  fmt.Sprintf("expected between %d and %d parameters, got %d.", least, paramLen, actualArgLen),
-					PosStart: callExpression.PosStart,
-					PosEnd:   callExpression.PosEnd,
-				}
-			}
-			return nil, false
-		}
 	}
 
 	return argument, true
@@ -3358,7 +3570,7 @@ func (e *Evaluator) evalCallFunction(function object.Object, callExpression *ast
 							PosStart: callExpression.PosStart,
 							PosEnd:   callExpression.PosEnd,
 						}
-						val, err := init.Value.(*object.Method).Function.(*object.BuiltinFunction).Fn(e.Frame, env, callExpression.PosStart, callExpression.PosEnd, ret)
+						val, err := init.Value.(*object.BuiltinFunction).Fn(e.Frame, env, callExpression.PosStart, callExpression.PosEnd, ret)
 						if err != nil {
 							e.Err = err
 							return nil
@@ -3382,7 +3594,7 @@ func (e *Evaluator) evalCallFunction(function object.Object, callExpression *ast
 						PosStart: callExpression.PosStart,
 						PosEnd:   callExpression.PosEnd,
 					}
-					val, err := init.Value.(*object.Method).Function.(*object.BuiltinFunction).Fn(e.Frame, env, callExpression.PosStart, callExpression.PosEnd, arg)
+					val, err := init.Value.(*object.BuiltinFunction).Fn(e.Frame, env, callExpression.PosStart, callExpression.PosEnd, arg)
 					if err != nil {
 						e.Err = err
 						return nil
@@ -3391,7 +3603,7 @@ func (e *Evaluator) evalCallFunction(function object.Object, callExpression *ast
 					return val
 				}
 			}
-			ret := e.evalCallFunction(init.Value.(*object.Method).Function, callExpression, env)
+			ret := e.evalCallFunction(init.Value.(*object.BuiltinFunction), callExpression, env)
 			if e.Err != nil {
 				return nil
 			}
@@ -3487,13 +3699,12 @@ func (e *Evaluator) evalCallFunction(function object.Object, callExpression *ast
 			return instance
 		}
 	case *object.BoundBuiltinMethod:
-		fn := function.Function.Function.(*object.BuiltinFunction)
-
+		fn := function.Function
 		// 使用辅助函数评估和验证参数
 		argument, ok := e.evaluateCallBuiltinArguments(
 			callExpression,
 			env,
-			nil,
+			fn.Parameter,
 			fn.DefaultValue,
 			fn.HaveVariadic,
 		)

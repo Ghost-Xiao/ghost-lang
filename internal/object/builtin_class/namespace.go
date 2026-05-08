@@ -34,28 +34,20 @@ func initNamespaceClass() *object.Class {
 
 var (
 	// NAMESPACEMEMBERS 表示 Namespace 类的 members 方法
-	NAMESPACEMEMBERS = object.Method{
-		Name: "members",
-		Function: &object.BuiltinFunction{
-			Name:         "members",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           NamespaceMembers,
-		},
-		Instance: nil,
+	NAMESPACEMEMBERS = object.BuiltinFunction{
+		Name:         "members",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           NamespaceMembers,
 	}
 	// NAMESPACEHAS 表示 Namespace 类的 has 方法
-	NAMESPACEHAS = object.Method{
-		Name: "has",
-		Function: &object.BuiltinFunction{
-			Name:         "has",
-			Parameter:    []string{"name"},
-			DefaultValue: []object.Object{nil},
-			HaveVariadic: false,
-			Fn:           NamespaceHas,
-		},
-		Instance: nil,
+	NAMESPACEHAS = object.BuiltinFunction{
+		Name:         "has",
+		Parameter:    []string{"name"},
+		DefaultValue: []object.Object{nil},
+		HaveVariadic: false,
+		Fn:           NamespaceHas,
 	}
 )
 

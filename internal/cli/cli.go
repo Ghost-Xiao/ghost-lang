@@ -7,6 +7,8 @@ import (
 	"github.com/fatih/color"
 )
 
+// Run 是CLI的主函数
+// 解析命令行参数并执行相应的操作
 func Run() {
 	// 定义命令行标志
 	replMode := flag.Bool("r", false, "REPL")

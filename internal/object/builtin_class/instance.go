@@ -35,40 +35,28 @@ func initInstanceClass() *object.Class {
 
 var (
 	// INSTANCETYPE 表示 Instance 类的 type 方法
-	INSTANCETYPE = object.Method{
-		Name: "type",
-		Function: &object.BuiltinFunction{
-			Name:         "type",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           InstanceType,
-		},
-		Instance: nil,
+	INSTANCETYPE = object.BuiltinFunction{
+		Name:         "type",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           InstanceType,
 	}
 	// INSTANCEMEMBERS 表示 Instance 类的 members 方法
-	INSTANCEMEMBERS = object.Method{
-		Name: "members",
-		Function: &object.BuiltinFunction{
-			Name:         "members",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           InstanceMembers,
-		},
-		Instance: nil,
+	INSTANCEMEMBERS = object.BuiltinFunction{
+		Name:         "members",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           InstanceMembers,
 	}
 	// INSTANCEHASMEMBER 表示 Instance 类的 hasMember 方法
-	INSTANCEHASMEMBER = object.Method{
-		Name: "hasMember",
-		Function: &object.BuiltinFunction{
-			Name:         "hasMember",
-			Parameter:    []string{"name"},
-			DefaultValue: []object.Object{nil},
-			HaveVariadic: false,
-			Fn:           InstanceHasMember,
-		},
-		Instance: nil,
+	INSTANCEHASMEMBER = object.BuiltinFunction{
+		Name:         "hasMember",
+		Parameter:    []string{"name"},
+		DefaultValue: []object.Object{nil},
+		HaveVariadic: false,
+		Fn:           InstanceHasMember,
 	}
 )
 

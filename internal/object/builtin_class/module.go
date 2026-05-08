@@ -34,28 +34,20 @@ func initModuleClass() *object.Class {
 
 var (
 	// MODULEPATH 表示 Module 类的 path 方法
-	MODULEPATH = object.Method{
-		Name: "path",
-		Function: &object.BuiltinFunction{
-			Name:         "path",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           ModulePath,
-		},
-		Instance: nil,
+	MODULEPATH = object.BuiltinFunction{
+		Name:         "path",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           ModulePath,
 	}
 	// MODULENAME 表示 Module 类的 name 方法
-	MODULENAME = object.Method{
-		Name: "name",
-		Function: &object.BuiltinFunction{
-			Name:         "name",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           ModuleName,
-		},
-		Instance: nil,
+	MODULENAME = object.BuiltinFunction{
+		Name:         "name",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           ModuleName,
 	}
 )
 

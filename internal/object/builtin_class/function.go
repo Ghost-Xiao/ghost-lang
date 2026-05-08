@@ -34,28 +34,20 @@ func initFunctionClass() *object.Class {
 
 var (
 	// FUNCTIONNAME 表示 Function 类的 name 方法
-	FUNCTIONNAME = object.Method{
-		Name: "name",
-		Function: &object.BuiltinFunction{
-			Name:         "name",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           FunctionName,
-		},
-		Instance: nil,
+	FUNCTIONNAME = object.BuiltinFunction{
+		Name:         "name",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           FunctionName,
 	}
 	// FUNCTIONARITY 表示 Function 类的 arity 方法
-	FUNCTIONARITY = object.Method{
-		Name: "arity",
-		Function: &object.BuiltinFunction{
-			Name:         "arity",
-			Parameter:    []string{},
-			DefaultValue: []object.Object{},
-			HaveVariadic: false,
-			Fn:           FunctionArity,
-		},
-		Instance: nil,
+	FUNCTIONARITY = object.BuiltinFunction{
+		Name:         "arity",
+		Parameter:    []string{},
+		DefaultValue: []object.Object{},
+		HaveVariadic: false,
+		Fn:           FunctionArity,
 	}
 )
 
