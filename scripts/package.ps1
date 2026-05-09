@@ -2,13 +2,15 @@
 # 脚本文件保留原始名称：setup.ps1 / setup.sh / setup.command
 
 # 确保文件以UTF-8 BOM格式保存
-#Requires -RunAsAdministrator
+
 # 设置输出编码为 UTF-8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::OutputEncoding = $OutputEncoding
 [Console]::InputEncoding = $OutputEncoding
 
-$Version = "v0.4.0"
+$Version = "v0.5.0"
+$VsixFileName = "ghost-lang-vscode.vsix"
+$VsixSourcePath = "bin/$VsixFileName"
 
 # 确保 bin 目录存在
 if (-not (Test-Path "bin")) {
@@ -59,6 +61,15 @@ foreach ($platformDir in $PlatformDirs) {
         @("README.md", "LICENSE") | ForEach-Object {
             $src = Join-Path $ProjectRoot $_
             if (Test-Path $src) { Copy-Item $src $TempDir }
+        }
+
+        # 复制 VS Code 扩展
+        $VsixFullPath = Join-Path $ProjectRoot $VsixSourcePath
+        if (Test-Path $VsixFullPath) {
+            Copy-Item $VsixFullPath $TempDir
+            Write-Host "✅ 包含 VS Code 扩展: $VsixFileName" -ForegroundColor Green
+        } else {
+            Write-Host "⚠️  未找到 VSIX 文件: $VsixSourcePath" -ForegroundColor Yellow
         }
 
         # 平台特定资源（保留原始文件名）

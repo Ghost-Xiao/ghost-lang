@@ -1,0 +1,91 @@
+{
+  "name": "ghost-lang",
+  "displayName": "Ghost 语言",
+  "description": "Ghost 编程语言的 VS Code 插件",
+  "version": "0.5.0",
+  "publisher": "ghost-lang",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ghost-Xiao/ghost-lang"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "ghost",
+    "language",
+    "programming"
+  ],
+  "activationEvents": [
+    "onLanguage:ghost"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "ghost",
+        "aliases": [
+          "Ghost",
+          "ghost"
+        ],
+        "extensions": [
+          ".gh",
+          ".ghost"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "ghost",
+        "scopeName": "source.ghost",
+        "path": "./syntaxes/ghost.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "Ghost Language",
+      "properties": {
+        "ghost.maxNumberOfProblems": {
+          "scope": "resource",
+          "type": "number",
+          "default": 100,
+          "description": "Controls the maximum number of problems produced by the server."
+        },
+        "ghost.trace.server": {
+          "scope": "window",
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Traces the communication between VS Code and the language server."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.11"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.1",
+    "@typescript-eslint/parser": "^6.13.1",
+    "eslint": "^8.54.0",
+    "typescript": "^5.3.2"
+  }
+}

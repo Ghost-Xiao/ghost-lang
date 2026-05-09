@@ -52,6 +52,9 @@ func initMathModule() *object.Module {
 	env.Set("stdDev", &object.Symbol{Name: "stdDev", Value: &STDDEV, IsConst: true})
 	env.Set("rand", &object.Symbol{Name: "rand", Value: &RAND, IsConst: true})
 	env.Set("randInt", &object.Symbol{Name: "randInt", Value: &RANDINT, IsConst: true})
+	env.Set("factorial", &object.Symbol{Name: "factorial", Value: &FACTORIAL, IsConst: true})
+	env.Set("comb", &object.Symbol{Name: "comb", Value: &COMB, IsConst: true})
+	env.Set("perm", &object.Symbol{Name: "perm", Value: &PERM, IsConst: true})
 
 	return &object.Module{
 		Name: "math",
@@ -257,6 +260,30 @@ var (
 		DefaultValue: []object.Object{nil, nil},
 		HaveVariadic: false,
 		Fn:           MathRandInt,
+	}
+	// FACTORIAL 阶乘函数
+	FACTORIAL = object.BuiltinFunction{
+		Name:         "factorial",
+		Parameter:    []string{"n"},
+		DefaultValue: []object.Object{nil},
+		HaveVariadic: false,
+		Fn:           MathFactorial,
+	}
+	// COMB 组合数函数
+	COMB = object.BuiltinFunction{
+		Name:         "comb",
+		Parameter:    []string{"n", "k"},
+		DefaultValue: []object.Object{nil, nil},
+		HaveVariadic: false,
+		Fn:           MathComb,
+	}
+	// PERM 排列数函数
+	PERM = object.BuiltinFunction{
+		Name:         "perm",
+		Parameter:    []string{"n", "k"},
+		DefaultValue: []object.Object{nil, nil},
+		HaveVariadic: false,
+		Fn:           MathPerm,
 	}
 )
 
@@ -1110,7 +1137,7 @@ func MathMean(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Po
 		}
 		sum += val
 	}
-	
+
 	return &object.Float{Value: sum / float64(len(args[0].(*object.List).Elements))}, nil
 }
 
@@ -1345,4 +1372,190 @@ func MathRandInt(f *frame.Frame, env *object.Environment, posStart, posEnd *util
 	}
 
 	return &object.Int{Value: minVal + rand.Int63n(maxVal-minVal+1)}, nil
+}
+
+// MathFactorial 实现阶乘函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 阶乘结果
+//	error - 可能出现的错误
+func MathFactorial(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
+	x := args[0]
+	var n int64
+	switch num := x.(type) {
+	case *object.Int:
+		n = num.Value
+	case *object.Float:
+		n = int64(num.Value)
+	default:
+		return nil, &errors.TypeError{
+			Frame:    f,
+			Message:  "invalid type for factorial function.",
+			PosStart: posStart,
+			PosEnd:   posEnd,
+		}
+	}
+	if n < 0 {
+		return nil, &errors.OperationError{
+			Frame:    f,
+			Message:  "factorial of negative number.",
+			PosStart: posStart,
+			PosEnd:   posEnd,
+		}
+	}
+	if n > 20 {
+		return nil, &errors.OperationError{
+			Frame:    f,
+			Message:  "factorial number too large.",
+			PosStart: posStart,
+			PosEnd:   posEnd,
+		}
+	}
+	var result int64 = 1
+	for i := int64(2); i <= n; i++ {
+		result *= i
+	}
+	return &object.Int{Value: result}, nil
+}
+
+// MathComb 实现组合数函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 组合数结果
+//	error - 可能出现的错误
+func MathComb(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
+	nArg := args[0]
+	kArg := args[1]
+	var n, k int64
+	switch num := nArg.(type) {
+	case *object.Int:
+		n = num.Value
+	case *object.Float:
+		n = int64(num.Value)
+	default:
+		return nil, &errors.TypeError{
+			Frame:    f,
+			Message:  "invalid type for n in comb function.",
+			PosStart: posStart,
+			PosEnd:   posEnd,
+		}
+	}
+	switch num := kArg.(type) {
+	case *object.Int:
+		k = num.Value
+	case *object.Float:
+		k = int64(num.Value)
+	default:
+		return nil, &errors.TypeError{
+			Frame:    f,
+			Message:  "invalid type for k in comb function.",
+			PosStart: posStart,
+			PosEnd:   posEnd,
+		}
+	}
+	if n < 0 || k < 0 {
+		return nil, &errors.OperationError{
+			Frame:    f,
+			Message:  "comb arguments must be non-negative.",
+			PosStart: posStart,
+			PosEnd:   posEnd,
+		}
+	}
+	if k > n {
+		return &object.Int{Value: 0}, nil
+	}
+	if k == 0 || k == n {
+		return &object.Int{Value: 1}, nil
+	}
+	if k > n-k {
+		k = n - k
+	}
+	var result int64 = 1
+	for i := int64(1); i <= k; i++ {
+		result = result * (n - k + i) / i
+	}
+	return &object.Int{Value: result}, nil
+}
+
+// MathPerm 实现排列数函数
+//
+// 参数:
+//
+//	f - 当前调用栈
+//	env - 执行环境
+//	posStart - 表达式起始位置
+//	posEnd - 表达式结束位置
+//	args - 函数参数
+//
+// 返回值:
+//
+//	object.Object - 排列数结果
+//	error - 可能出现的错误
+func MathPerm(f *frame.Frame, env *object.Environment, posStart, posEnd *util.Pos, args ...object.Object) (object.Object, error) {
+	nArg := args[0]
+	kArg := args[1]
+	var n, k int64
+	switch num := nArg.(type) {
+	case *object.Int:
+		n = num.Value
+	case *object.Float:
+		n = int64(num.Value)
+	default:
+		return nil, &errors.TypeError{
+			Frame:    f,
+			Message:  "invalid type for n in perm function.",
+			PosStart: posStart,
+			PosEnd:   posEnd,
+		}
+	}
+	switch num := kArg.(type) {
+	case *object.Int:
+		k = num.Value
+	case *object.Float:
+		k = int64(num.Value)
+	default:
+		return nil, &errors.TypeError{
+			Frame:    f,
+			Message:  "invalid type for k in perm function.",
+			PosStart: posStart,
+			PosEnd:   posEnd,
+		}
+	}
+	if n < 0 || k < 0 {
+		return nil, &errors.OperationError{
+			Frame:    f,
+			Message:  "perm arguments must be non-negative.",
+			PosStart: posStart,
+			PosEnd:   posEnd,
+		}
+	}
+	if k > n {
+		return &object.Int{Value: 0}, nil
+	}
+	if k == 0 {
+		return &object.Int{Value: 1}, nil
+	}
+	var result int64 = 1
+	for i := int64(0); i < k; i++ {
+		result *= (n - i)
+	}
+	return &object.Int{Value: result}, nil
 }

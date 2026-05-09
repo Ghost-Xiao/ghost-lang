@@ -1,7 +1,6 @@
 ﻿# build.ps1 - 交叉编译脚本 (Windows PowerShell)
 
 # 确保文件以UTF-8 BOM格式保存
-#Requires -RunAsAdministrator
 
 # 设置输出编码为 UTF-8
 $OutputEncoding = [System.Text.Encoding]::UTF8
@@ -12,9 +11,13 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 Set-Location -Path "$PSScriptRoot/.."
 
 # 配置参数
-$Version = "0.4.0"
+$Version = "0.5.0"
 $OutputDir = "bin"
 $MainPackage = "./cmd/ghost"  # 相对于项目根目录
+
+# VS Code 扩展配置
+$VsCodeExtensionDir = "vscode-ghost"
+$VsixOutputPath = "$OutputDir/ghost-lang-vscode.vsix"
 
 # 图标和资源配置
 $IconPath = "assets/image.ico"          # ← 请根据实际路径调整！
@@ -131,3 +134,67 @@ foreach ($platform in $TargetPlatforms) {
 }
 
 Write-Host "🎉 全部构建任务完成! 输出目录: $PWD\$OutputDir" -ForegroundColor Magenta
+
+# 构建 VS Code 扩展
+Write-Host "`n🔧 开始构建 VS Code 扩展..." -ForegroundColor Cyan
+
+# 检查扩展目录是否存在
+if (-not (Test-Path $VsCodeExtensionDir)) {
+    Write-Host "⚠️  未找到 VS Code 扩展目录: $VsCodeExtensionDir，跳过 VSIX 构建" -ForegroundColor Yellow
+    exit 0
+}
+
+# 进入扩展目录
+Set-Location $VsCodeExtensionDir
+
+# 检查 node_modules 是否存在，不存在则安装依赖
+if (-not (Test-Path "node_modules")) {
+    Write-Host "📦 安装 VS Code 扩展依赖..." -ForegroundColor Yellow
+    npm install --registry=https://registry.npmmirror.com
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "❌ 依赖安装失败！" -ForegroundColor Red
+        Set-Location ..
+        exit 1
+    }
+}
+
+# 编译 TypeScript
+Write-Host "🔨 编译 TypeScript 代码..." -ForegroundColor Yellow
+npm run compile
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ TypeScript 编译失败！" -ForegroundColor Red
+    Set-Location ..
+    exit 1
+}
+
+# 检查并安装 vsce（VS Code Extension Manager）
+$hasVsce = $null -ne (Get-Command vsce -ErrorAction SilentlyContinue)
+if (-not $hasVsce) {
+    Write-Host "📦 安装 vsce 工具..." -ForegroundColor Yellow
+    npm install -g @vscode/vsce --registry=https://registry.npmmirror.com
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "❌ vsce 安装失败！" -ForegroundColor Red
+        Set-Location ..
+        exit 1
+    }
+}
+
+# 确保输出目录存在
+if (-not (Test-Path "..\$OutputDir")) {
+    New-Item -ItemType Directory -Path "..\$OutputDir" | Out-Null
+}
+
+# 打包 VSIX
+Write-Host "📦 打包 VSIX 文件..." -ForegroundColor Yellow
+vsce package -o "..\$VsixOutputPath"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ VSIX 打包失败！" -ForegroundColor Red
+    Set-Location ..
+    exit 1
+}
+
+# 返回项目根目录
+Set-Location ..
+
+Write-Host "✅ VS Code 扩展构建成功: $VsixOutputPath" -ForegroundColor Green
+Write-Host "`n🎉 所有构建任务完成!" -ForegroundColor Magenta
